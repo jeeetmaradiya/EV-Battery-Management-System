@@ -1,0 +1,1209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deterministic Fault State Machine Dashboard</title>
+<style>
+/* ─── Reset & Base ─────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0f172a;
+  --bg-card: #1e293b;
+  --bg-card-alt: #1a2332;
+  --border: #334155;
+  --border-light: #475569;
+  --text: #e2e8f0;
+  --text-dim: #94a3b8;
+  --text-bright: #f1f5f9;
+  --normal: #22c55e;
+  --degraded: #f59e0b;
+  --failsafe: #ef4444;
+  --shutdown: #6b21a8;
+  --accent: #3b82f6;
+  --accent-dim: #1d4ed8;
+  --ok-glow: rgba(34,197,94,0.3);
+  --warn-glow: rgba(245,158,11,0.3);
+  --err-glow: rgba(239,68,68,0.3);
+  --shut-glow: rgba(107,33,168,0.3);
+}
+html { font-size: 13px; }
+body {
+  font-family: 'Segoe UI', 'Inter', -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ─── Scrollbar ────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-light); }
+
+/* ─── Header ───────────────────────────────────────────────────────────────── */
+.header {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+}
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.header-title h1 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--text-bright);
+  text-transform: uppercase;
+}
+.header-icon {
+  width: 32px; height: 32px;
+  background: linear-gradient(135deg, var(--accent), #06b6d4);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+}
+.header-info {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  font-size: 0.9rem;
+}
+.header-info span { color: var(--text-dim); }
+.header-info .value { color: var(--text-bright); font-family: 'Consolas', 'Courier New', monospace; font-weight: 600; }
+.conn-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--normal);
+  display: inline-block;
+  margin-right: 6px;
+  animation: pulse-dot 1.5s infinite;
+}
+.conn-dot.disconnected { background: var(--failsafe); animation: none; }
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ─── Main Grid ────────────────────────────────────────────────────────────── */
+.dashboard {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  grid-template-rows: auto;
+  gap: 12px;
+  padding: 12px 16px 24px;
+  max-width: 1920px;
+  margin: 0 auto;
+}
+
+/* ─── Card ─────────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  transition: border-color 0.3s, box-shadow 0.3s;
+  overflow: hidden;
+}
+.card:hover { border-color: var(--border-light); box-shadow: 0 4px 16px rgba(0,0,0,0.3); }
+.card-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.card-title .icon { font-size: 14px; }
+
+/* ─── State Indicator ──────────────────────────────────────────────────────── */
+.state-card { grid-column: 1 / 3; }
+.state-display {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+.state-badge {
+  font-size: 2.2rem;
+  font-weight: 800;
+  letter-spacing: 4px;
+  padding: 12px 32px;
+  border-radius: 12px;
+  text-align: center;
+  transition: all 0.5s ease;
+  position: relative;
+  min-width: 260px;
+}
+.state-badge.NORMAL { color: var(--normal); background: rgba(34,197,94,0.1); border: 2px solid var(--normal); box-shadow: 0 0 30px var(--ok-glow), inset 0 0 30px var(--ok-glow); }
+.state-badge.DEGRADED { color: var(--degraded); background: rgba(245,158,11,0.1); border: 2px solid var(--degraded); box-shadow: 0 0 30px var(--warn-glow), inset 0 0 30px var(--warn-glow); }
+.state-badge.FAILSAFE { color: var(--failsafe); background: rgba(239,68,68,0.1); border: 2px solid var(--failsafe); box-shadow: 0 0 30px var(--err-glow), inset 0 0 30px var(--err-glow); animation: pulse-failsafe 1s infinite; }
+.state-badge.SHUTDOWN { color: var(--shutdown); background: rgba(107,33,168,0.1); border: 2px solid var(--shutdown); box-shadow: 0 0 30px var(--shut-glow), inset 0 0 30px var(--shut-glow); }
+
+@keyframes pulse-failsafe {
+  0%, 100% { box-shadow: 0 0 30px var(--err-glow), inset 0 0 30px var(--err-glow); }
+  50% { box-shadow: 0 0 60px var(--err-glow), inset 0 0 50px var(--err-glow), 0 0 80px rgba(239,68,68,0.15); }
+}
+
+.state-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+.state-meta-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: var(--bg);
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+.state-meta-item .label { color: var(--text-dim); }
+.state-meta-item .val { color: var(--text-bright); font-family: 'Consolas', monospace; font-weight: 600; }
+
+/* ─── FSM Diagram ──────────────────────────────────────────────────────────── */
+.fsm-card { grid-column: 3 / 5; }
+.fsm-container {
+  position: relative;
+  width: 100%;
+  height: 220px;
+}
+.fsm-container svg {
+  width: 100%;
+  height: 100%;
+}
+.fsm-node {
+  cursor: default;
+  transition: all 0.3s;
+}
+.fsm-node rect {
+  rx: 8;
+  ry: 8;
+  stroke-width: 2;
+  transition: all 0.5s;
+}
+.fsm-node text {
+  font-family: 'Segoe UI', sans-serif;
+  font-weight: 700;
+  font-size: 11px;
+  fill: white;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+.fsm-node.active rect {
+  stroke-width: 3;
+  filter: url(#glow);
+}
+.fsm-arrow {
+  fill: none;
+  stroke: var(--border-light);
+  stroke-width: 1.5;
+  marker-end: url(#arrowhead);
+  transition: stroke 0.3s;
+}
+.fsm-arrow.active { stroke: var(--accent); stroke-width: 2; }
+
+/* ─── Fault Registry ───────────────────────────────────────────────────────── */
+.fault-card { grid-column: 1 / 3; }
+.fault-table-wrap {
+  max-height: 200px;
+  overflow-y: auto;
+}
+table.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+table.data-table th {
+  background: var(--bg);
+  color: var(--text-dim);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 8px 8px;
+  text-align: left;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  font-size: 0.7rem;
+}
+table.data-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(51,65,85,0.5);
+  font-family: 'Consolas', monospace;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+table.data-table tr:hover { background: rgba(59,130,246,0.05); }
+.status-active {
+  color: var(--failsafe);
+  font-weight: 700;
+}
+.status-cleared {
+  color: var(--normal);
+  font-weight: 600;
+}
+.sev-LOW { color: #60a5fa; }
+.sev-MEDIUM { color: var(--degraded); }
+.sev-HIGH { color: #f97316; }
+.sev-CRITICAL { color: var(--failsafe); font-weight: 700; }
+
+/* ─── Recovery Pipeline ────────────────────────────────────────────────────── */
+.recovery-card { grid-column: 3 / 5; }
+.pipeline-visual {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+.pipeline-stage {
+  flex: 1;
+  text-align: center;
+  padding: 10px 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  position: relative;
+  transition: all 0.4s;
+  font-size: 0.7rem;
+}
+.pipeline-stage .stage-num {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-dim);
+  margin-bottom: 2px;
+}
+.pipeline-stage .stage-name {
+  color: var(--text-dim);
+  font-weight: 600;
+  font-size: 0.65rem;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.pipeline-stage.completed {
+  background: rgba(34,197,94,0.1);
+  border-color: var(--normal);
+}
+.pipeline-stage.completed .stage-num,
+.pipeline-stage.completed .stage-name { color: var(--normal); }
+.pipeline-stage.active {
+  background: rgba(59,130,246,0.15);
+  border-color: var(--accent);
+  box-shadow: 0 0 15px rgba(59,130,246,0.3);
+  animation: stage-pulse 1s infinite;
+}
+.pipeline-stage.active .stage-num,
+.pipeline-stage.active .stage-name { color: var(--accent); }
+@keyframes stage-pulse {
+  0%,100% { box-shadow: 0 0 10px rgba(59,130,246,0.2); }
+  50% { box-shadow: 0 0 25px rgba(59,130,246,0.4); }
+}
+.pipeline-connector {
+  width: 18px;
+  height: 2px;
+  background: var(--border);
+  flex-shrink: 0;
+  position: relative;
+}
+.pipeline-connector.completed { background: var(--normal); }
+.pipeline-connector::after {
+  content: '';
+  position: absolute;
+  right: -3px;
+  top: -3px;
+  width: 0; height: 0;
+  border-left: 6px solid var(--border);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+}
+.pipeline-connector.completed::after { border-left-color: var(--normal); }
+
+.verification-bar {
+  height: 6px;
+  background: var(--bg);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+.verification-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), #06b6d4);
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+.pipeline-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  margin-top: 6px;
+}
+.pipeline-info .val { color: var(--text-bright); font-weight: 600; }
+
+/* ─── Transition Log ───────────────────────────────────────────────────────── */
+.log-card { grid-column: 1 / 3; }
+.log-table-wrap {
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+/* ─── Subsystem Health ─────────────────────────────────────────────────────── */
+.health-card { grid-column: 3 / 5; }
+.health-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.health-item {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.3s;
+}
+.health-light {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: all 0.3s;
+}
+.health-light.OK { background: var(--normal); box-shadow: 0 0 10px var(--ok-glow); }
+.health-light.WARNING { background: var(--degraded); box-shadow: 0 0 10px var(--warn-glow); animation: pulse-dot 1s infinite; }
+.health-light.FAULT { background: var(--failsafe); box-shadow: 0 0 10px var(--err-glow); animation: pulse-dot 0.5s infinite; }
+.health-info h4 {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin-bottom: 2px;
+}
+.health-info p {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+/* ─── Telemetry Gauges ─────────────────────────────────────────────────────── */
+.telemetry-card { grid-column: 1 / 5; }
+.telemetry-sections {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 16px;
+}
+.telem-section h4 {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+.cell-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+}
+.cell-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.cell-bar-track {
+  width: 100%;
+  height: 48px;
+  background: var(--bg);
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.cell-bar-fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--normal);
+  border-radius: 0 0 3px 3px;
+  transition: height 0.3s, background 0.3s;
+}
+.cell-bar-fill.warn { background: var(--degraded); }
+.cell-bar-fill.danger { background: var(--failsafe); }
+.cell-bar .cell-label {
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+.cell-bar .cell-val {
+  font-size: 0.65rem;
+  color: var(--text-bright);
+  font-family: 'Consolas', monospace;
+  font-weight: 600;
+}
+
+.adc-channels {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.adc-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.adc-label {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  font-weight: 600;
+  min-width: 42px;
+}
+.adc-bar-track {
+  flex: 1;
+  height: 16px;
+  background: var(--bg);
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.adc-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), #06b6d4);
+  transition: width 0.3s;
+  border-radius: 4px;
+}
+.adc-bar-fill.frozen { background: var(--failsafe); }
+.adc-val {
+  font-size: 0.7rem;
+  color: var(--text-bright);
+  font-family: 'Consolas', monospace;
+  min-width: 40px;
+  text-align: right;
+}
+
+.misc-gauges {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.gauge-item {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+.gauge-item .gauge-label {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+.gauge-item .gauge-val {
+  font-size: 1.1rem;
+  font-weight: 800;
+  font-family: 'Consolas', monospace;
+  color: var(--text-bright);
+  margin-top: 2px;
+}
+.gauge-item .gauge-val.ok { color: var(--normal); }
+.gauge-item .gauge-val.warn { color: var(--degraded); }
+.gauge-item .gauge-val.err { color: var(--failsafe); }
+
+/* ─── Metrics & Controls ───────────────────────────────────────────────────── */
+.metrics-card { grid-column: 1 / 3; }
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.metric-box {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+}
+.metric-box .metric-val {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--accent);
+  font-family: 'Consolas', monospace;
+}
+.metric-box .metric-label {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+  font-weight: 600;
+}
+
+.controls-card { grid-column: 3 / 5; }
+.controls-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.ctrl-btn {
+  padding: 10px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: 'Segoe UI', sans-serif;
+}
+.ctrl-btn:hover:not(:disabled) {
+  background: rgba(59,130,246,0.15);
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59,130,246,0.2);
+}
+.ctrl-btn:active:not(:disabled) { transform: translateY(0); }
+.ctrl-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.ctrl-btn.danger { border-color: rgba(239,68,68,0.4); color: var(--failsafe); }
+.ctrl-btn.danger:hover:not(:disabled) {
+  background: rgba(239,68,68,0.15);
+  border-color: var(--failsafe);
+  box-shadow: 0 4px 12px rgba(239,68,68,0.2);
+}
+.ctrl-btn.recovery { border-color: rgba(34,197,94,0.4); color: var(--normal); }
+.ctrl-btn.recovery:hover:not(:disabled) {
+  background: rgba(34,197,94,0.15);
+  border-color: var(--normal);
+  box-shadow: 0 4px 12px rgba(34,197,94,0.2);
+}
+.ctrl-btn.warn { border-color: rgba(245,158,11,0.4); color: var(--degraded); }
+.ctrl-btn.warn:hover:not(:disabled) {
+  background: rgba(245,158,11,0.15);
+  border-color: var(--degraded);
+  box-shadow: 0 4px 12px rgba(245,158,11,0.2);
+}
+.ctrl-btn.shutdown-btn { border-color: rgba(107,33,168,0.4); color: var(--shutdown); }
+.ctrl-btn.shutdown-btn:hover:not(:disabled) {
+  background: rgba(107,33,168,0.15);
+  border-color: var(--shutdown);
+  box-shadow: 0 4px 12px rgba(107,33,168,0.2);
+}
+
+/* ─── Toast ────────────────────────────────────────────────────────────────── */
+.toast-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.toast {
+  padding: 10px 18px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.8rem;
+  color: var(--text);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  animation: toast-in 0.3s ease;
+  max-width: 320px;
+}
+.toast.success { border-left: 3px solid var(--normal); }
+.toast.error { border-left: 3px solid var(--failsafe); }
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(40px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* ─── Responsive ───────────────────────────────────────────────────────────── */
+@media (max-width: 1200px) {
+  .dashboard { grid-template-columns: 1fr 1fr; }
+  .state-card, .fsm-card, .fault-card, .recovery-card, .log-card, .health-card, .telemetry-card, .metrics-card, .controls-card {
+    grid-column: 1 / 3;
+  }
+}
+@media (max-width: 768px) {
+  .dashboard { grid-template-columns: 1fr; }
+  .state-card, .fsm-card, .fault-card, .recovery-card, .log-card, .health-card, .telemetry-card, .metrics-card, .controls-card {
+    grid-column: 1;
+  }
+  .header { flex-direction: column; gap: 8px; }
+  .telemetry-sections { grid-template-columns: 1fr; }
+  .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+  .controls-grid { grid-template-columns: repeat(2, 1fr); }
+  .state-display { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+
+<!-- ─── Header ─────────────────────────────────────────────────────────────── -->
+<div class="header">
+  <div class="header-title">
+    <div class="header-icon">&#9889;</div>
+    <h1>Deterministic Fault State Machine</h1>
+  </div>
+  <div class="header-info">
+    <span><span class="conn-dot" id="connDot"></span> <span class="value" id="connStatus">CONNECTED</span></span>
+    <span>CLOCK <span class="value" id="liveClock">--:--:--</span></span>
+    <span>UPTIME <span class="value" id="uptime">00:00:00</span></span>
+  </div>
+</div>
+
+<!-- ─── Dashboard Grid ─────────────────────────────────────────────────────── -->
+<div class="dashboard">
+
+  <!-- State Indicator -->
+  <div class="card state-card">
+    <div class="card-title"><span class="icon">&#9632;</span> System State</div>
+    <div class="state-display">
+      <div class="state-badge NORMAL" id="stateBadge">NORMAL</div>
+      <div class="state-meta">
+        <div class="state-meta-item"><span class="label">Previous State</span><span class="val" id="prevState">--</span></div>
+        <div class="state-meta-item"><span class="label">Transition Seq</span><span class="val" id="transSeq">0</span></div>
+        <div class="state-meta-item"><span class="label">Active Faults</span><span class="val" id="activeFaultCount">0</span></div>
+        <div class="state-meta-item"><span class="label">Max Severity</span><span class="val" id="maxSeverity">NONE</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FSM Diagram -->
+  <div class="card fsm-card">
+    <div class="card-title"><span class="icon">&#9670;</span> State Machine Diagram</div>
+    <div class="fsm-container">
+      <svg viewBox="0 0 520 200" id="fsmSvg">
+        <defs>
+          <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto" fill="#475569">
+            <polygon points="0 0, 8 3, 0 6"/>
+          </marker>
+          <marker id="arrowheadActive" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto" fill="#3b82f6">
+            <polygon points="0 0, 8 3, 0 6"/>
+          </marker>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="4" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+        <!-- Arrows (transitions) -->
+        <!-- NORMAL -> DEGRADED -->
+        <path d="M 165 55 Q 200 15 235 55" class="fsm-arrow" id="arrow-N-D"/>
+        <!-- NORMAL -> FAILSAFE -->
+        <path d="M 100 80 Q 100 140 235 140" class="fsm-arrow" id="arrow-N-F"/>
+        <!-- DEGRADED -> NORMAL -->
+        <path d="M 235 75 Q 200 95 165 75" class="fsm-arrow" id="arrow-D-N"/>
+        <!-- DEGRADED -> FAILSAFE -->
+        <path d="M 310 80 L 310 120" class="fsm-arrow" id="arrow-D-F"/>
+        <!-- FAILSAFE -> DEGRADED -->
+        <path d="M 290 120 L 290 80" class="fsm-arrow" id="arrow-F-D"/>
+        <!-- FAILSAFE -> SHUTDOWN -->
+        <path d="M 370 140 L 420 140" class="fsm-arrow" id="arrow-F-S"/>
+        <!-- SHUTDOWN -> NORMAL -->
+        <path d="M 460 120 Q 480 40 165 55" class="fsm-arrow" id="arrow-S-N"/>
+
+        <!-- Nodes -->
+        <g class="fsm-node" id="fsm-NORMAL">
+          <rect x="40" y="40" width="120" height="45" fill="rgba(34,197,94,0.15)" stroke="#22c55e"/>
+          <text x="100" y="62" font-size="12">NORMAL</text>
+        </g>
+        <g class="fsm-node" id="fsm-DEGRADED">
+          <rect x="240" y="40" width="120" height="45" fill="rgba(245,158,11,0.15)" stroke="#f59e0b"/>
+          <text x="300" y="62" font-size="12">DEGRADED</text>
+        </g>
+        <g class="fsm-node" id="fsm-FAILSAFE">
+          <rect x="240" y="118" width="120" height="45" fill="rgba(239,68,68,0.15)" stroke="#ef4444"/>
+          <text x="300" y="140" font-size="12">FAILSAFE</text>
+        </g>
+        <g class="fsm-node" id="fsm-SHUTDOWN">
+          <rect x="420" y="118" width="120" height="45" fill="rgba(107,33,168,0.15)" stroke="#6b21a8"/>
+          <text x="480" y="140" font-size="12">SHUTDOWN</text>
+        </g>
+
+        <!-- Transition labels (small) -->
+        <text x="200" y="16" font-size="7" fill="#94a3b8" text-anchor="middle">fault</text>
+        <text x="80" y="120" font-size="7" fill="#94a3b8" text-anchor="middle">critical</text>
+        <text x="200" y="105" font-size="7" fill="#94a3b8" text-anchor="middle">cleared</text>
+        <text x="318" y="100" font-size="7" fill="#94a3b8" text-anchor="start">escalate</text>
+        <text x="268" y="100" font-size="7" fill="#94a3b8" text-anchor="end">recover</text>
+        <text x="395" y="133" font-size="7" fill="#94a3b8" text-anchor="middle">fail</text>
+        <text x="475" y="60" font-size="7" fill="#94a3b8" text-anchor="middle">reset</text>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Fault Registry -->
+  <div class="card fault-card">
+    <div class="card-title"><span class="icon">&#9888;</span> Fault Registry</div>
+    <div class="fault-table-wrap">
+      <table class="data-table" id="faultTable">
+        <thead>
+          <tr>
+            <th>Fault ID</th>
+            <th>Name</th>
+            <th>Source</th>
+            <th>Severity</th>
+            <th>Status</th>
+            <th>First Detected</th>
+            <th>Occ</th>
+          </tr>
+        </thead>
+        <tbody id="faultBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Recovery Pipeline -->
+  <div class="card recovery-card">
+    <div class="card-title"><span class="icon">&#9881;</span> Recovery Pipeline</div>
+    <div class="pipeline-visual" id="pipelineVisual"></div>
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+        <span style="font-size:0.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">Verification Samples</span>
+        <span style="font-size:0.75rem;color:var(--text-bright);font-family:Consolas,monospace;" id="verifLabel">0 / 10</span>
+      </div>
+      <div class="verification-bar">
+        <div class="verification-bar-fill" id="verifBar" style="width:0%"></div>
+      </div>
+    </div>
+    <div class="pipeline-info">
+      <span>Status: <span class="val" id="pipeStatus">IDLE</span></span>
+      <span>Target: <span class="val" id="pipeTarget">N/A</span></span>
+      <span>Stage: <span class="val" id="pipeStage">--</span></span>
+    </div>
+  </div>
+
+  <!-- Transition Audit Log -->
+  <div class="card log-card">
+    <div class="card-title"><span class="icon">&#128196;</span> Transition Audit Log</div>
+    <div class="log-table-wrap">
+      <table class="data-table" id="logTable">
+        <thead>
+          <tr>
+            <th>Seq#</th>
+            <th>Timestamp</th>
+            <th>Prev &#8594; New</th>
+            <th>Fault ID</th>
+            <th>Source</th>
+            <th>Severity</th>
+            <th>Reason</th>
+          </tr>
+        </thead>
+        <tbody id="logBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Subsystem Health -->
+  <div class="card health-card">
+    <div class="card-title"><span class="icon">&#9829;</span> Subsystem Health Monitors</div>
+    <div class="health-grid">
+      <div class="health-item" id="health-battery">
+        <div class="health-light OK" id="hl-battery"></div>
+        <div class="health-info">
+          <h4>&#128267; Battery Cells</h4>
+          <p id="hd-battery">All cells nominal</p>
+        </div>
+      </div>
+      <div class="health-item" id="health-relay">
+        <div class="health-light OK" id="hl-relay"></div>
+        <div class="health-info">
+          <h4>&#9889; Relay</h4>
+          <p id="hd-relay">All relays matched</p>
+        </div>
+      </div>
+      <div class="health-item" id="health-communication">
+        <div class="health-light OK" id="hl-communication"></div>
+        <div class="health-info">
+          <h4>&#128225; Communication</h4>
+          <p id="hd-communication">Heartbeat active</p>
+        </div>
+      </div>
+      <div class="health-item" id="health-adc">
+        <div class="health-light OK" id="hl-adc"></div>
+        <div class="health-info">
+          <h4>&#128200; ADC</h4>
+          <p id="hd-adc">All channels active</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Telemetry -->
+  <div class="card telemetry-card">
+    <div class="card-title"><span class="icon">&#128202;</span> Telemetry Gauges</div>
+    <div class="telemetry-sections">
+      <div class="telem-section">
+        <h4>Cell Voltages (12 Cells)</h4>
+        <div class="cell-grid" id="cellGrid"></div>
+      </div>
+      <div class="telem-section">
+        <h4>ADC Channels (4)</h4>
+        <div class="adc-channels" id="adcChannels"></div>
+      </div>
+      <div class="telem-section">
+        <h4>System Gauges</h4>
+        <div class="misc-gauges" id="miscGauges">
+          <div class="gauge-item">
+            <div class="gauge-label">Heartbeat Age</div>
+            <div class="gauge-val ok" id="gHeartbeat">0.0s</div>
+          </div>
+          <div class="gauge-item">
+            <div class="gauge-label">Relay Match</div>
+            <div class="gauge-val ok" id="gRelay">4 / 4</div>
+          </div>
+          <div class="gauge-item">
+            <div class="gauge-label">Temperature</div>
+            <div class="gauge-val" id="gTemp">25.0°C</div>
+          </div>
+          <div class="gauge-item">
+            <div class="gauge-label">Bus Current</div>
+            <div class="gauge-val" id="gCurrent">10.0A</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Metrics -->
+  <div class="card metrics-card">
+    <div class="card-title"><span class="icon">&#128200;</span> Metrics Summary</div>
+    <div class="metrics-grid">
+      <div class="metric-box">
+        <div class="metric-val" id="mFaults">0</div>
+        <div class="metric-label">Total Faults</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-val" id="mTransitions">0</div>
+        <div class="metric-label">Total Transitions</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-val" id="mRecovery">0</div>
+        <div class="metric-label">Recovery Attempts</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-val" id="mUptime">00:00:00</div>
+        <div class="metric-label">System Uptime</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="card controls-card">
+    <div class="card-title"><span class="icon">&#9881;</span> Fault Injection &amp; Controls</div>
+    <div class="controls-grid">
+      <button class="ctrl-btn" onclick="inject('adc_frozen')">&#128200; Freeze ADC</button>
+      <button class="ctrl-btn warn" onclick="inject('relay_welded')">&#9889; Weld Relay</button>
+      <button class="ctrl-btn" onclick="inject('comm_loss')">&#128225; Comm Loss</button>
+      <button class="ctrl-btn warn" onclick="inject('cell_overvoltage')">&#128267; Cell OV</button>
+      <button class="ctrl-btn danger" onclick="inject('estop')">&#9888; ESTOP</button>
+      <button class="ctrl-btn recovery" id="btnRecovery" onclick="inject('request_recovery')" disabled>&#9881; Request Recovery</button>
+      <button class="ctrl-btn shutdown-btn" id="btnReset" onclick="inject('service_reset')" disabled>&#128260; Service Reset</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+// ─── State ──────────────────────────────────────────────────────────────────
+let connected = false;
+let lastState = '';
+
+// ─── Clock ──────────────────────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  document.getElementById('liveClock').textContent =
+    String(now.getHours()).padStart(2,'0') + ':' +
+    String(now.getMinutes()).padStart(2,'0') + ':' +
+    String(now.getSeconds()).padStart(2,'0');
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ─── Toast ──────────────────────────────────────────────────────────────────
+function showToast(msg, type) {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = 'toast ' + (type || 'success');
+  toast.textContent = msg;
+  container.appendChild(toast);
+  setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; setTimeout(() => toast.remove(), 300); }, 3000);
+}
+
+// ─── Inject Fault ───────────────────────────────────────────────────────────
+async function inject(type) {
+  try {
+    const resp = await fetch('/api/inject', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type })
+    });
+    const data = await resp.json();
+    showToast(data.message, data.success ? 'success' : 'error');
+  } catch (e) {
+    showToast('Failed to inject: ' + e.message, 'error');
+  }
+}
+
+// ─── Build Static Elements ─────────────────────────────────────────────────
+function buildCellGrid() {
+  const grid = document.getElementById('cellGrid');
+  grid.innerHTML = '';
+  for (let i = 0; i < 12; i++) {
+    grid.innerHTML += '<div class="cell-bar"><div class="cell-bar-track"><div class="cell-bar-fill" id="cellFill' + i + '"></div></div><div class="cell-val" id="cellVal' + i + '">0.00</div><div class="cell-label">C' + i + '</div></div>';
+  }
+}
+
+function buildAdcChannels() {
+  const wrap = document.getElementById('adcChannels');
+  wrap.innerHTML = '';
+  for (let i = 0; i < 4; i++) {
+    wrap.innerHTML += '<div class="adc-item"><span class="adc-label">CH ' + i + '</span><div class="adc-bar-track"><div class="adc-bar-fill" id="adcFill' + i + '"></div></div><span class="adc-val" id="adcVal' + i + '">0</span></div>';
+  }
+}
+
+function buildPipeline() {
+  const wrap = document.getElementById('pipelineVisual');
+  const stages = ['Fault\nDetected', 'Isolation', 'Mitigation', 'Verification', 'Restoration', 'Monitoring'];
+  let html = '';
+  for (let i = 0; i < stages.length; i++) {
+    if (i > 0) html += '<div class="pipeline-connector" id="pipeConn' + i + '"></div>';
+    html += '<div class="pipeline-stage" id="pipeStageEl' + i + '"><div class="stage-num">' + i + '</div><div class="stage-name">' + stages[i] + '</div></div>';
+  }
+  wrap.innerHTML = html;
+}
+
+buildCellGrid();
+buildAdcChannels();
+buildPipeline();
+
+// ─── Update Dashboard ───────────────────────────────────────────────────────
+function updateDashboard(data) {
+  // Connection
+  connected = true;
+  document.getElementById('connDot').className = 'conn-dot';
+  document.getElementById('connStatus').textContent = 'CONNECTED';
+
+  // Uptime
+  document.getElementById('uptime').textContent = data.uptime;
+  document.getElementById('mUptime').textContent = data.uptime;
+
+  // State
+  const badge = document.getElementById('stateBadge');
+  badge.textContent = data.currentState;
+  badge.className = 'state-badge ' + data.currentState;
+
+  document.getElementById('prevState').textContent = data.previousState;
+  document.getElementById('transSeq').textContent = data.transitionSeq;
+  document.getElementById('activeFaultCount').textContent = data.activeFaults.length;
+
+  const maxSev = data.activeFaults.length > 0 ? data.activeFaults.reduce((m, f) => {
+    const s = f.severity;
+    return s > m ? s : m;
+  }, 0) : 0;
+  const sevNames = { 0: 'NONE', 1: 'LOW', 2: 'MEDIUM', 3: 'HIGH', 4: 'CRITICAL' };
+  const sevEl = document.getElementById('maxSeverity');
+  sevEl.textContent = sevNames[maxSev] || 'NONE';
+  sevEl.className = 'val sev-' + (sevNames[maxSev] || 'NONE');
+
+  // FSM Diagram
+  const states = ['NORMAL', 'DEGRADED', 'FAILSAFE', 'SHUTDOWN'];
+  states.forEach(s => {
+    const node = document.getElementById('fsm-' + s);
+    if (s === data.currentState) {
+      node.classList.add('active');
+    } else {
+      node.classList.remove('active');
+    }
+  });
+
+  // Highlight active transition arrow
+  const arrowMap = {
+    'NORMAL_DEGRADED': 'arrow-N-D',
+    'NORMAL_FAILSAFE': 'arrow-N-F',
+    'DEGRADED_NORMAL': 'arrow-D-N',
+    'DEGRADED_FAILSAFE': 'arrow-D-F',
+    'FAILSAFE_DEGRADED': 'arrow-F-D',
+    'FAILSAFE_SHUTDOWN': 'arrow-F-S',
+    'SHUTDOWN_NORMAL': 'arrow-S-N'
+  };
+  Object.values(arrowMap).forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.classList.remove('active'); el.setAttribute('marker-end', 'url(#arrowhead)'); }
+  });
+  if (data.previousState !== data.currentState) {
+    const key = data.previousState + '_' + data.currentState;
+    const arrowId = arrowMap[key];
+    if (arrowId) {
+      const el = document.getElementById(arrowId);
+      if (el) { el.classList.add('active'); el.setAttribute('marker-end', 'url(#arrowheadActive)'); }
+    }
+  }
+
+  // Fault Registry
+  const fBody = document.getElementById('faultBody');
+  fBody.innerHTML = '';
+  data.faults.forEach(f => {
+    const statusClass = f.status === 'Active' ? 'status-active' : 'status-cleared';
+    const sevClass = 'sev-' + f.severityName;
+    const ts = f.firstDetected ? f.firstDetected.split('T')[1].split('.')[0] : '--';
+    fBody.innerHTML += '<tr>' +
+      '<td>' + f.id + '</td>' +
+      '<td>' + f.name + '</td>' +
+      '<td>' + f.source + '</td>' +
+      '<td class="' + sevClass + '">' + f.severityName + '</td>' +
+      '<td class="' + statusClass + '">' + f.status + '</td>' +
+      '<td>' + ts + '</td>' +
+      '<td>' + f.occurrences + '</td>' +
+      '</tr>';
+  });
+
+  // Recovery Pipeline
+  const rp = data.recoveryPipeline;
+  for (let i = 0; i < 6; i++) {
+    const stageEl = document.getElementById('pipeStageEl' + i);
+    stageEl.className = 'pipeline-stage';
+    if (rp.active) {
+      if (i < rp.currentStage) stageEl.classList.add('completed');
+      else if (i === rp.currentStage) stageEl.classList.add('active');
+    }
+    if (i > 0) {
+      const conn = document.getElementById('pipeConn' + i);
+      conn.className = 'pipeline-connector';
+      if (rp.active && i <= rp.currentStage) conn.classList.add('completed');
+    }
+  }
+
+  const verifPct = rp.verificationTarget > 0 ? (rp.verificationSamples / rp.verificationTarget * 100) : 0;
+  document.getElementById('verifBar').style.width = verifPct + '%';
+  document.getElementById('verifLabel').textContent = rp.verificationSamples + ' / ' + rp.verificationTarget;
+
+  document.getElementById('pipeStatus').textContent = rp.active ? 'ACTIVE' : 'IDLE';
+  document.getElementById('pipeStatus').style.color = rp.active ? 'var(--accent)' : 'var(--text-dim)';
+  document.getElementById('pipeTarget').textContent = rp.targetFaultId || 'N/A';
+  document.getElementById('pipeStage').textContent = rp.active ? rp.stages[rp.currentStage]?.label || '--' : '--';
+
+  // Transition Log
+  const lBody = document.getElementById('logBody');
+  lBody.innerHTML = '';
+  data.transitionLog.forEach(entry => {
+    const ts = entry.timestamp.split('T')[1].split('.')[0];
+    const prevColor = getStateColor(entry.prevState);
+    const newColor = getStateColor(entry.newState);
+    lBody.innerHTML += '<tr>' +
+      '<td>' + entry.seq + '</td>' +
+      '<td>' + ts + '</td>' +
+      '<td><span style="color:' + prevColor + '">' + entry.prevState + '</span> &#8594; <span style="color:' + newColor + '">' + entry.newState + '</span></td>' +
+      '<td>' + entry.faultId + '</td>' +
+      '<td>' + entry.source + '</td>' +
+      '<td class="sev-' + entry.severity + '">' + entry.severity + '</td>' +
+      '<td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;" title="' + entry.reason + '">' + entry.reason + '</td>' +
+      '</tr>';
+  });
+
+  // Subsystem Health
+  const subs = ['battery', 'relay', 'communication', 'adc'];
+  subs.forEach(s => {
+    const light = document.getElementById('hl-' + s);
+    const detail = document.getElementById('hd-' + s);
+    light.className = 'health-light ' + data.subsystems[s].status;
+    detail.textContent = data.subsystems[s].detail;
+  });
+
+  // Telemetry: Cells
+  const t = data.telemetry;
+  for (let i = 0; i < 12; i++) {
+    const v = t.cellVoltages[i];
+    const pct = Math.max(0, Math.min(100, ((v - 2.5) / (4.3 - 2.5)) * 100));
+    const fill = document.getElementById('cellFill' + i);
+    fill.style.height = pct + '%';
+    fill.className = 'cell-bar-fill' + (v > 4.2 ? ' danger' : v < 3.0 ? ' warn' : '');
+    document.getElementById('cellVal' + i).textContent = v.toFixed(2);
+  }
+
+  // Telemetry: ADC
+  for (let i = 0; i < 4; i++) {
+    const v = t.adcChannels[i];
+    const pct = Math.max(0, Math.min(100, (v / 4095) * 100));
+    const fill = document.getElementById('adcFill' + i);
+    fill.style.width = pct + '%';
+    fill.className = 'adc-bar-fill' + (t.adcFrozenCounters[i] > 0 ? ' frozen' : '');
+    document.getElementById('adcVal' + i).textContent = Math.round(v);
+  }
+
+  // Telemetry: Misc
+  const hbEl = document.getElementById('gHeartbeat');
+  hbEl.textContent = t.commHeartbeatAge.toFixed(1) + 's';
+  hbEl.className = 'gauge-val ' + (t.commHeartbeatAge > 5 ? 'err' : t.commHeartbeatAge > 2 ? 'warn' : 'ok');
+
+  const relayMatch = t.relayCommanded.reduce((c, v, i) => c + (v === t.relayActual[i] ? 1 : 0), 0);
+  const relEl = document.getElementById('gRelay');
+  relEl.textContent = relayMatch + ' / 4';
+  relEl.className = 'gauge-val ' + (relayMatch === 4 ? 'ok' : 'err');
+
+  document.getElementById('gTemp').textContent = t.temperature.toFixed(1) + '\u00B0C';
+  document.getElementById('gCurrent').textContent = t.current.toFixed(1) + 'A';
+
+  // Metrics
+  document.getElementById('mFaults').textContent = data.metrics.totalFaults;
+  document.getElementById('mTransitions').textContent = data.metrics.totalTransitions;
+  document.getElementById('mRecovery').textContent = data.metrics.recoveryAttempts;
+
+  // Controls state
+  document.getElementById('btnRecovery').disabled = data.currentState !== 'FAILSAFE';
+  document.getElementById('btnReset').disabled = data.currentState !== 'SHUTDOWN';
+}
+
+function getStateColor(state) {
+  switch (state) {
+    case 'NORMAL': return 'var(--normal)';
+    case 'DEGRADED': return 'var(--degraded)';
+    case 'FAILSAFE': return 'var(--failsafe)';
+    case 'SHUTDOWN': return 'var(--shutdown)';
+    default: return 'var(--text)';
+  }
+}
+
+// ─── Data Fetch Loop ────────────────────────────────────────────────────────
+async function fetchData() {
+  try {
+    const resp = await fetch('/api/data');
+    const data = await resp.json();
+    updateDashboard(data);
+  } catch (e) {
+    connected = false;
+    document.getElementById('connDot').className = 'conn-dot disconnected';
+    document.getElementById('connStatus').textContent = 'DISCONNECTED';
+  }
+}
+
+setInterval(fetchData, 500);
+fetchData();
+
+</script>
+</body>
+</html>

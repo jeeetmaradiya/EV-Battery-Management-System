@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modular Battery Management System (BMS) Telemetry Dashboard</title>
+    <style>
+        :root {
+            --bg-dark: #0a0e17;
+            --panel-bg: #131c2e;
+            --panel-border: #1e2d4a;
+            --accent-blue: #00d2ff;
+            --accent-green: #00ff88;
+            --accent-yellow: #ffb703;
+            --accent-red: #ff3366;
+            --accent-purple: #9d4edd;
+            --text-main: #f0f4f8;
+            --text-dim: #8ba2b8;
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: var(--font-family);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--panel-border);
+            padding-bottom: 16px;
+            margin-bottom: 24px;
+        }
+
+        .header-title h1 {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .badge-live {
+            background: rgba(0, 255, 136, 0.15);
+            color: var(--accent-green);
+            border: 1px solid var(--accent-green);
+            padding: 3px 10px;
+            font-size: 11px;
+            font-weight: 700;
+            border-radius: 20px;
+            text-transform: uppercase;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.7; }
+            50% { opacity: 1; }
+            100% { opacity: 0.7; }
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .select-btn-group {
+            display: flex;
+            background: #0d1522;
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .select-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-dim);
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .select-btn.active {
+            background: var(--accent-blue);
+            color: #000;
+            font-weight: 700;
+        }
+
+        /* Top KPI Grid */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .kpi-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            padding: 16px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--accent-blue);
+        }
+
+        .kpi-card.warning::before { background: var(--accent-yellow); }
+        .kpi-card.danger::before { background: var(--accent-red); }
+        .kpi-card.success::before { background: var(--accent-green); }
+
+        .kpi-label {
+            font-size: 12px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .kpi-value {
+            font-size: 26px;
+            font-weight: 700;
+            color: var(--text-main);
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+        }
+
+        .kpi-unit {
+            font-size: 14px;
+            color: var(--text-dim);
+            font-weight: 500;
+        }
+
+        .kpi-sub {
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-top: 6px;
+        }
+
+        /* Main Dashboard Layout */
+        .dashboard-body {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 1100px) {
+            .dashboard-body {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Panel Styling */
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 12px;
+        }
+
+        .panel-header h2 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--accent-blue);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Cell Array Grid */
+        .cell-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .cell-box {
+            background: #0d1522;
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 12px 10px;
+            text-align: center;
+            position: relative;
+            transition: all 0.2s ease;
+        }
+
+        .cell-box.weakest {
+            border-color: var(--accent-yellow);
+            box-shadow: 0 0 10px rgba(255, 183, 3, 0.3);
+        }
+
+        .cell-box.strongest {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 10px rgba(0, 210, 255, 0.3);
+        }
+
+        .cell-box.balancing {
+            border-color: var(--accent-purple);
+            background: rgba(157, 78, 221, 0.15);
+        }
+
+        .cell-idx {
+            font-size: 11px;
+            color: var(--text-dim);
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .cell-volts {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .cell-volts-unit {
+            font-size: 10px;
+            color: var(--text-dim);
+        }
+
+        .cell-bar-wrap {
+            width: 100%;
+            height: 6px;
+            background: #1c2738;
+            border-radius: 3px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+
+        .cell-bar-fill {
+            height: 100%;
+            background: var(--accent-green);
+            transition: width 0.3s ease;
+        }
+
+        .cell-box.weakest .cell-bar-fill { background: var(--accent-yellow); }
+        .cell-box.strongest .cell-bar-fill { background: var(--accent-blue); }
+        .cell-box.balancing .cell-bar-fill { background: var(--accent-purple); }
+
+        .cell-badge {
+            position: absolute;
+            top: -6px;
+            right: 6px;
+            font-size: 9px;
+            padding: 1px 5px;
+            border-radius: 4px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .badge-weak { background: var(--accent-yellow); color: #000; }
+        .badge-strong { background: var(--accent-blue); color: #000; }
+        .badge-bal { background: var(--accent-purple); color: #fff; }
+
+        /* Real-Time Chart */
+        .chart-container {
+            width: 100%;
+            height: 240px;
+            position: relative;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Controls & Scenarios */
+        .control-group {
+            margin-bottom: 16px;
+        }
+
+        .control-group label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+
+        .control-group label span {
+            color: var(--accent-blue);
+            font-weight: 700;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: #1c2738;
+            border-radius: 3px;
+            outline: none;
+            appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent-blue);
+            cursor: pointer;
+            box-shadow: 0 0 8px var(--accent-blue);
+        }
+
+        .btn-scenario {
+            width: 100%;
+            background: #0d1522;
+            border: 1px solid var(--panel-border);
+            color: var(--text-main);
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: left;
+            margin-bottom: 8px;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .btn-scenario:hover {
+            border-color: var(--accent-blue);
+            background: #141f33;
+        }
+
+        .btn-scenario.active {
+            border-color: var(--accent-blue);
+            background: rgba(0, 210, 255, 0.1);
+        }
+
+        .btn-action-primary {
+            width: 100%;
+            background: linear-gradient(135deg, #00d2ff, #0077ff);
+            border: none;
+            color: #000;
+            font-weight: 700;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 15px rgba(0, 210, 255, 0.4);
+        }
+
+        .btn-action-primary:hover {
+            opacity: 0.9;
+        }
+
+        /* Downstream Tasks Box */
+        .downstream-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .downstream-item {
+            background: #0d1522;
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .downstream-name {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .downstream-detail {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-top: 2px;
+        }
+
+        .status-pill {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .pill-active { background: rgba(0, 255, 136, 0.15); color: var(--accent-green); border: 1px solid var(--accent-green); }
+        .pill-warn { background: rgba(255, 183, 3, 0.15); color: var(--accent-yellow); border: 1px solid var(--accent-yellow); }
+        .pill-danger { background: rgba(255, 51, 102, 0.15); color: var(--accent-red); border: 1px solid var(--accent-red); }
+        .pill-idle { background: rgba(139, 162, 184, 0.15); color: var(--text-dim); border: 1px solid var(--panel-border); }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-title">
+            <h1>Modular BMS Engine & Telemetry</h1>
+            <span class="badge-live">● ENGINE LIVE</span>
+        </div>
+        <div class="header-controls">
+            <span style="font-size: 13px; color: var(--text-dim); font-weight: 600;">Compile-Time Scale:</span>
+            <div class="select-btn-group">
+                <button class="select-btn" onclick="setCellCount(4)">4S (12V)</button>
+                <button class="select-btn" onclick="setCellCount(8)">8S (24V)</button>
+                <button class="select-btn" onclick="setCellCount(12)">12S (36V)</button>
+                <button class="select-btn active" onclick="setCellCount(16)">16S (48V)</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Top KPI Row -->
+    <div class="kpi-grid">
+        <div class="kpi-card" id="card-pack-v">
+            <div class="kpi-label">Pack Voltage</div>
+            <div class="kpi-value"><span id="val-pack-v">52.80</span> <span class="kpi-unit">V</span></div>
+            <div class="kpi-sub">Avg Cell: <span id="val-avg-cell">3300</span> mV</div>
+        </div>
+
+        <div class="kpi-card" id="card-imbalance">
+            <div class="kpi-label">Imbalance (ΔV)</div>
+            <div class="kpi-value"><span id="val-raw-imbalance">30</span> <span class="kpi-unit">mV</span></div>
+            <div class="kpi-sub">Filtered: <span id="val-filtered-imbalance">30.0</span> mV</div>
+        </div>
+
+        <div class="kpi-card" id="card-adaptive">
+            <div class="kpi-label">Adaptive Threshold</div>
+            <div class="kpi-value"><span id="val-adaptive-thresh">25.0</span> <span class="kpi-unit">mV</span></div>
+            <div class="kpi-sub">Ratio: <span id="val-imbalance-ratio">1.20</span>x (vs 30mV static)</div>
+        </div>
+
+        <div class="kpi-card" id="card-trend">
+            <div class="kpi-label">Imbalance Trend</div>
+            <div class="kpi-value" id="val-trend-dir" style="font-size: 20px;">STEADY</div>
+            <div class="kpi-sub">Rate: <span id="val-trend-rate">+0.00</span> mV/s</div>
+        </div>
+
+        <div class="kpi-card" id="card-fault">
+            <div class="kpi-label">Safety Status</div>
+            <div class="kpi-value" id="val-safety-status" style="font-size: 18px; color: var(--accent-green);">NORMAL</div>
+            <div class="kpi-sub">Mask: <span id="val-bal-mask">0x0000</span></div>
+        </div>
+    </div>
+
+    <!-- Main Layout -->
+    <div class="dashboard-body">
+        <!-- Left: Cell Grid & Strip Chart -->
+        <div>
+            <!-- Individual Cell Matrix -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>Individual Cell Terminal Voltages (1 to <span id="label-cell-count">16</span>)</h2>
+                    <span style="font-size: 12px; color: var(--text-dim);">Single-Pass O(N) Traversal</span>
+                </div>
+                <div class="cell-grid" id="cell-grid-container">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <!-- Real-Time Imbalance Strip Chart -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>Real-Time Imbalance vs Adaptive Threshold Waveform</h2>
+                    <div style="font-size: 12px; display: flex; gap: 14px;">
+                        <span style="color: var(--accent-yellow);">● Filtered ΔV</span>
+                        <span style="color: var(--accent-blue);">● Adaptive Threshold</span>
+                        <span style="color: #ff3366; opacity: 0.7;">-- Static 30mV Limit</span>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="telemetryChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Interactive Controls & Downstream Consumers -->
+        <div>
+            <!-- Live Controller & Sliders -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>Battery Operating State</h2>
+                </div>
+
+                <div class="control-group">
+                    <label>State of Charge (SoC): <span id="disp-soc">50 %</span></label>
+                    <input type="range" id="slider-soc" min="0" max="100" value="50" oninput="updateSliders()">
+                </div>
+
+                <div class="control-group">
+                    <label>Pack Current (Amps): <span id="disp-current">0.0 A</span></label>
+                    <input type="range" id="slider-current" min="-40" max="80" value="0" step="1" oninput="updateSliders()">
+                </div>
+
+                <div style="margin-top: 16px; margin-bottom: 8px;">
+                    <div style="font-size: 12px; color: var(--text-dim); text-transform: uppercase; font-weight: 600; margin-bottom: 8px;">Simulated Scenarios</div>
+                    <button class="btn-scenario active" onclick="loadScenario('baseline')">
+                        <span>1. Nominal Flat Plateau (50% SoC, 0A)</span>
+                        <span style="font-size: 10px; color: var(--accent-green);">BALANCED</span>
+                    </button>
+                    <button class="btn-scenario" onclick="loadScenario('burst')">
+                        <span>2. 40A Acceleration Burst (IR Drop)</span>
+                        <span style="font-size: 10px; color: var(--accent-blue);">IR SPREAD</span>
+                    </button>
+                    <button class="btn-scenario" onclick="loadScenario('low_knee')">
+                        <span>3. Depletion Knee (&lt; 15% SoC)</span>
+                        <span style="font-size: 10px; color: var(--accent-yellow);">OCV SPREAD</span>
+                    </button>
+                    <button class="btn-scenario" onclick="loadScenario('diverging_fault')">
+                        <span>4. Developing Micro-Short / IR Fault</span>
+                        <span style="font-size: 10px; color: var(--accent-red);">DIVERGING</span>
+                    </button>
+                    <button class="btn-scenario" onclick="loadScenario('active_balancing')">
+                        <span>5. Active Balancing Convergence</span>
+                        <span style="font-size: 10px; color: var(--accent-purple);">BALANCING</span>
+                    </button>
+                </div>
+
+                <button class="btn-action-primary" id="btn-toggle-sim" onclick="toggleSim()">Pause Simulation</button>
+            </div>
+
+            <!-- Downstream Consumer Tasks -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>Downstream Module Tasks</h2>
+                </div>
+                <div class="downstream-list">
+                    <div class="downstream-item">
+                        <div>
+                            <div class="downstream-name">Cell Balancing Task</div>
+                            <div class="downstream-detail">Passive shunt resistor drivers</div>
+                        </div>
+                        <span class="status-pill pill-idle" id="pill-bal">IDLE</span>
+                    </div>
+
+                    <div class="downstream-item">
+                        <div>
+                            <div class="downstream-name">Contactor Protection Task</div>
+                            <div class="downstream-detail">Main HV pyrofuse & relays</div>
+                        </div>
+                        <span class="status-pill pill-active" id="pill-contactor">CLOSED</span>
+                    </div>
+
+                    <div class="downstream-item">
+                        <div>
+                            <div class="downstream-name">CAN Bus Telemetry (0x380)</div>
+                            <div class="downstream-detail">Extrema broadcast @ 10 Hz</div>
+                        </div>
+                        <span class="status-pill pill-active">TX ACTIVE</span>
+                    </div>
+
+                    <div class="downstream-item">
+                        <div>
+                            <div class="downstream-name">Thermal Management Task</div>
+                            <div class="downstream-detail">Liquid cooling fan throttle</div>
+                        </div>
+                        <span class="status-pill pill-active" id="pill-cooling">PUMP 20%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Engine Configuration Parameters
+        const BMS_CONFIG = {
+            IMBALANCE_BASE_THRESHOLD_MV: 25.0,
+            SOC_KNEE_LOW_PCT: 20.0,
+            SOC_KNEE_HIGH_PCT: 80.0,
+            SOC_KNEE_MAX_MULTIPLIER: 2.8,
+            DYNAMIC_IR_COEFF_MV_PER_A: 1.5,
+            ADAPTIVE_THRESHOLD_MAX_CLAMP_MV: 120.0,
+            TREND_FILTER_ALPHA: 0.15,
+            TREND_RATE_DEADBAND_MV_S: 0.25,
+            PERSISTENCE_COUNT: 5
+        };
+
+        let cellCount = 16;
+        let cellVoltages = [];
+        let packSoc = 50.0;
+        let packCurrent = 0.0;
+        let isSimRunning = true;
+        let simInterval = null;
+
+        // Persistent Filter State
+        let filteredImbalance = 0.0;
+        let prevFilteredImbalance = 0.0;
+        let imbalanceRate = 0.0;
+        let currentTrend = 'STEADY';
+        let candidateTrend = 'STEADY';
+        let persistenceCounter = 0;
+        let cycleCounter = 0;
+
+        // Strip Chart History
+        const maxHistory = 50;
+        let historyLabels = [];
+        let historyDeltaV = [];
+        let historyAdaptive = [];
+        let historyFixed = [];
+
+        function initPack() {
+            cellVoltages = [];
+            for (let i = 0; i < cellCount; i++) {
+                cellVoltages.push(3300);
+            }
+            // Add slight baseline delta
+            cellVoltages[1] = 3288;
+            cellVoltages[cellCount - 1] = 3315;
+            filteredImbalance = 3315 - 3288;
+            prevFilteredImbalance = filteredImbalance;
+            renderCellBoxes();
+        }
+
+        function setCellCount(count) {
+            cellCount = count;
+            document.querySelectorAll('.select-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.innerText.startsWith(`${count}S`)) btn.classList.add('active');
+            });
+            document.getElementById('label-cell-count').innerText = count;
+            initPack();
+        }
+
+        function calculateAdaptiveThreshold(soc, current) {
+            let base = BMS_CONFIG.IMBALANCE_BASE_THRESHOLD_MV;
+            let socMultiplier = 1.0;
+
+            if (soc < BMS_CONFIG.SOC_KNEE_LOW_PCT) {
+                let norm = (BMS_CONFIG.SOC_KNEE_LOW_PCT - soc) / BMS_CONFIG.SOC_KNEE_LOW_PCT;
+                socMultiplier += (BMS_CONFIG.SOC_KNEE_MAX_MULTIPLIER - 1.0) * (norm * norm);
+            } else if (soc > BMS_CONFIG.SOC_KNEE_HIGH_PCT) {
+                let norm = (soc - BMS_CONFIG.SOC_KNEE_HIGH_PCT) / (100.0 - BMS_CONFIG.SOC_KNEE_HIGH_PCT);
+                socMultiplier += 1.0 * (norm * norm);
+            }
+
+            let dynamicIr = 0.0;
+            if (current > 0.0) {
+                dynamicIr = current * BMS_CONFIG.DYNAMIC_IR_COEFF_MV_PER_A;
+            }
+
+            let threshold = (base * socMultiplier) + dynamicIr;
+            return Math.min(threshold, BMS_CONFIG.ADAPTIVE_THRESHOLD_MAX_CLAMP_MV);
+        }
+
+        function executeBmsCycle() {
+            cycleCounter++;
+            let minV = 99999, maxV = -99999;
+            let minIdx = 0, maxIdx = 0;
+            let sumV = 0;
+
+            // Single pass scan
+            for (let i = 0; i < cellCount; i++) {
+                let v = cellVoltages[i];
+                if (v < minV) { minV = v; minIdx = i; }
+                if (v > maxV) { maxV = v; maxIdx = i; }
+                sumV += v;
+            }
+
+            let rawDelta = maxV - minV;
+            let avgV = Math.round(sumV / cellCount);
+            let adaptiveThresh = calculateAdaptiveThreshold(packSoc, packCurrent);
+
+            // Filter & Trend
+            filteredImbalance = (BMS_CONFIG.TREND_FILTER_ALPHA * rawDelta) + ((1.0 - BMS_CONFIG.TREND_FILTER_ALPHA) * filteredImbalance);
+            let dt = 0.1; // 100ms
+            imbalanceRate = (filteredImbalance - prevFilteredImbalance) / dt;
+            prevFilteredImbalance = filteredImbalance;
+
+            let candidate = 'STEADY';
+            if (imbalanceRate > BMS_CONFIG.TREND_RATE_DEADBAND_MV_S) candidate = 'INCREASING';
+            else if (imbalanceRate < -BMS_CONFIG.TREND_RATE_DEADBAND_MV_S) candidate = 'DECREASING';
+
+            if (candidate === candidateTrend) {
+                persistenceCounter++;
+                if (persistenceCounter >= BMS_CONFIG.PERSISTENCE_COUNT) currentTrend = candidate;
+            } else {
+                candidateTrend = candidate;
+                persistenceCounter = 1;
+            }
+
+            // Balancing mask
+            let balMask = 0;
+            let balCutoff = minV + Math.round(BMS_CONFIG.IMBALANCE_BASE_THRESHOLD_MV);
+            for (let i = 0; i < cellCount; i++) {
+                if (cellVoltages[i] > balCutoff) balMask |= (1 << i);
+            }
+
+            // Update UI KPIs
+            document.getElementById('val-pack-v').innerText = (sumV / 1000.0).toFixed(2);
+            document.getElementById('val-avg-cell').innerText = avgV;
+            document.getElementById('val-raw-imbalance').innerText = rawDelta;
+            document.getElementById('val-filtered-imbalance').innerText = filteredImbalance.toFixed(1);
+            document.getElementById('val-adaptive-thresh').innerText = adaptiveThresh.toFixed(1);
+            let ratio = (filteredImbalance / adaptiveThresh).toFixed(2);
+            document.getElementById('val-imbalance-ratio').innerText = ratio;
+
+            let trendEl = document.getElementById('val-trend-dir');
+            trendEl.innerText = currentTrend;
+            if (currentTrend === 'INCREASING') trendEl.style.color = 'var(--accent-red)';
+            else if (currentTrend === 'DECREASING') trendEl.style.color = 'var(--accent-green)';
+            else trendEl.style.color = 'var(--accent-blue)';
+
+            document.getElementById('val-trend-rate').innerText = (imbalanceRate >= 0 ? '+' : '') + imbalanceRate.toFixed(2);
+            document.getElementById('val-bal-mask').innerText = '0x' + balMask.toString(16).toUpperCase().padStart(4, '0');
+
+            // Safety card
+            let statusCard = document.getElementById('card-fault');
+            let statusEl = document.getElementById('val-safety-status');
+            if (filteredImbalance > 1.5 * adaptiveThresh) {
+                statusEl.innerText = 'CRITICAL';
+                statusEl.style.color = 'var(--accent-red)';
+                statusCard.className = 'kpi-card danger';
+                document.getElementById('pill-contactor').className = 'status-pill pill-danger';
+                document.getElementById('pill-contactor').innerText = 'OPEN TRIP';
+            } else if (filteredImbalance > adaptiveThresh) {
+                statusEl.innerText = 'WARNING';
+                statusEl.style.color = 'var(--accent-yellow)';
+                statusCard.className = 'kpi-card warning';
+                document.getElementById('pill-contactor').className = 'status-pill pill-warn';
+                document.getElementById('pill-contactor').innerText = 'WARN';
+            } else {
+                statusEl.innerText = 'NORMAL';
+                statusEl.style.color = 'var(--accent-green)';
+                statusCard.className = 'kpi-card success';
+                document.getElementById('pill-contactor').className = 'status-pill pill-active';
+                document.getElementById('pill-contactor').innerText = 'CLOSED';
+            }
+
+            // Downstream balancing pill
+            let balPill = document.getElementById('pill-bal');
+            if (balMask !== 0) {
+                balPill.className = 'status-pill pill-active';
+                balPill.innerText = `ACTIVE (${countBits(balMask)} CELLS)`;
+            } else {
+                balPill.className = 'status-pill pill-idle';
+                balPill.innerText = 'IDLE';
+            }
+
+            // Downstream cooling pill
+            let coolingPill = document.getElementById('pill-cooling');
+            if (Math.abs(packCurrent) > 30) {
+                coolingPill.innerText = 'PUMP 80%';
+                coolingPill.className = 'status-pill pill-warn';
+            } else {
+                coolingPill.innerText = 'PUMP 20%';
+                coolingPill.className = 'status-pill pill-active';
+            }
+
+            updateCellDOM(minIdx, maxIdx, balMask);
+            updateChart(filteredImbalance, adaptiveThresh, 30.0);
+        }
+
+        function countBits(n) {
+            let count = 0;
+            while (n > 0) { count += n & 1; n >>= 1; }
+            return count;
+        }
+
+        function renderCellBoxes() {
+            let container = document.getElementById('cell-grid-container');
+            container.innerHTML = '';
+            for (let i = 0; i < cellCount; i++) {
+                let box = document.createElement('div');
+                box.className = 'cell-box';
+                box.id = `cell-box-${i}`;
+                box.innerHTML = `
+                    <div class="cell-idx">CELL #${i+1}</div>
+                    <div class="cell-volts" id="cell-v-${i}">${cellVoltages[i]}</div>
+                    <div class="cell-volts-unit">mV</div>
+                    <div class="cell-bar-wrap">
+                        <div class="cell-bar-fill" id="cell-bar-${i}" style="width: 70%;"></div>
+                    </div>
+                    <span class="cell-badge" id="cell-badge-${i}" style="display: none;"></span>
+                `;
+                container.appendChild(box);
+            }
+        }
+
+        function updateCellDOM(minIdx, maxIdx, balMask) {
+            for (let i = 0; i < cellCount; i++) {
+                let box = document.getElementById(`cell-box-${i}`);
+                if (!box) continue;
+                let v = cellVoltages[i];
+                document.getElementById(`cell-v-${i}`).innerText = v;
+                
+                // Bar percentage based on 2500 - 4200mV
+                let pct = Math.max(5, Math.min(100, Math.round(((v - 2700) / (4200 - 2700)) * 100)));
+                document.getElementById(`cell-bar-${i}`).style.width = pct + '%';
+
+                box.className = 'cell-box';
+                let badge = document.getElementById(`cell-badge-${i}`);
+                badge.style.display = 'none';
+
+                if (i === minIdx) {
+                    box.classList.add('weakest');
+                    badge.className = 'cell-badge badge-weak';
+                    badge.innerText = 'MIN';
+                    badge.style.display = 'block';
+                } else if (i === maxIdx) {
+                    box.classList.add('strongest');
+                    badge.className = 'cell-badge badge-strong';
+                    badge.innerText = 'MAX';
+                    badge.style.display = 'block';
+                }
+
+                if ((balMask & (1 << i)) !== 0) {
+                    box.classList.add('balancing');
+                    if (i !== maxIdx && i !== minIdx) {
+                        badge.className = 'cell-badge badge-bal';
+                        badge.innerText = 'BAL';
+                        badge.style.display = 'block';
+                    }
+                }
+            }
+        }
+
+        // Custom High-Performance Canvas Strip Chart
+        const canvas = document.getElementById('telemetryChart');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function updateChart(deltaV, adaptive, fixed) {
+            if (historyDeltaV.length >= maxHistory) {
+                historyDeltaV.shift();
+                historyAdaptive.shift();
+                historyFixed.shift();
+            }
+            historyDeltaV.push(deltaV);
+            historyAdaptive.push(adaptive);
+            historyFixed.push(fixed);
+
+            drawChart();
+        }
+
+        function drawChart() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            let w = canvas.width;
+            let h = canvas.height;
+            let padding = 25;
+
+            // Draw grid lines
+            ctx.strokeStyle = '#1b263b';
+            ctx.lineWidth = 1;
+            for (let y = padding; y < h - padding; y += (h - 2*padding)/4) {
+                ctx.beginPath();
+                ctx.moveTo(padding, y);
+                ctx.lineTo(w - padding, y);
+                ctx.stroke();
+            }
+
+            // Max value scale (clamp between 60mV and 140mV)
+            let maxVal = Math.max(60, ...historyDeltaV, ...historyAdaptive, 40);
+
+            function getY(val) {
+                return (h - padding) - ((val / maxVal) * (h - 2 * padding));
+            }
+
+            let step = (w - 2 * padding) / (maxHistory - 1);
+
+            // Draw Static 30mV line
+            ctx.strokeStyle = '#ff3366';
+            ctx.setLineDash([4, 4]);
+            ctx.lineWidth = 1.5;
+            let yFixed = getY(30);
+            ctx.beginPath();
+            ctx.moveTo(padding, yFixed);
+            ctx.lineTo(w - padding, yFixed);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Draw Adaptive Threshold line
+            ctx.strokeStyle = '#00d2ff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (let i = 0; i < historyAdaptive.length; i++) {
+                let x = padding + i * step;
+                let y = getY(historyAdaptive[i]);
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            // Draw Filtered Delta V line
+            ctx.strokeStyle = '#ffb703';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            for (let i = 0; i < historyDeltaV.length; i++) {
+                let x = padding + i * step;
+                let y = getY(historyDeltaV[i]);
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+
+        function updateSliders() {
+            packSoc = parseFloat(document.getElementById('slider-soc').value);
+            packCurrent = parseFloat(document.getElementById('slider-current').value);
+            document.getElementById('disp-soc').innerText = packSoc + ' %';
+            document.getElementById('disp-current').innerText = (packCurrent >= 0 ? '+' : '') + packCurrent.toFixed(1) + ' A';
+        }
+
+        function loadScenario(type) {
+            document.querySelectorAll('.btn-scenario').forEach(b => b.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+
+            if (type === 'baseline') {
+                packSoc = 50.0;
+                packCurrent = 0.0;
+                for (let i = 0; i < cellCount; i++) cellVoltages[i] = 3300;
+                cellVoltages[1] = 3288;
+                cellVoltages[cellCount - 1] = 3315;
+            } else if (type === 'burst') {
+                packSoc = 50.0;
+                packCurrent = 40.0;
+                for (let i = 0; i < cellCount; i++) cellVoltages[i] = 3260;
+                cellVoltages[1] = 3210; // IR drop causes 85mV spread
+                cellVoltages[cellCount - 1] = 3295;
+            } else if (type === 'low_knee') {
+                packSoc = 10.0;
+                packCurrent = 5.0;
+                for (let i = 0; i < cellCount; i++) cellVoltages[i] = 3050;
+                cellVoltages[0] = 3010;
+                cellVoltages[cellCount - 1] = 3065;
+            } else if (type === 'diverging_fault') {
+                packSoc = 50.0;
+                packCurrent = 10.0;
+                cellVoltages[2] -= 8; // Drop cell 2 rapidly
+            } else if (type === 'active_balancing') {
+                packSoc = 50.0;
+                packCurrent = 0.0;
+                cellVoltages[2] += 6; // Recover cell 2
+            }
+
+            document.getElementById('slider-soc').value = packSoc;
+            document.getElementById('slider-current').value = packCurrent;
+            updateSliders();
+        }
+
+        function toggleSim() {
+            isSimRunning = !isSimRunning;
+            let btn = document.getElementById('btn-toggle-sim');
+            if (isSimRunning) {
+                btn.innerText = 'Pause Simulation';
+                btn.style.background = 'linear-gradient(135deg, #00d2ff, #0077ff)';
+            } else {
+                btn.innerText = 'Resume Simulation';
+                btn.style.background = '#2a3b5c';
+            }
+        }
+
+        // Initialize and Start 10Hz Execution Loop
+        initPack();
+        setInterval(() => {
+            if (isSimRunning) {
+                executeBmsCycle();
+            }
+        }, 100);
+    </script>
+</body>
+</html>

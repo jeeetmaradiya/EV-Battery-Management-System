@@ -1,0 +1,219 @@
+{
+  "timestamp": "2026-10-30T09:06:40.096Z",
+  "testResults": [
+    {
+      "id": "SC-01",
+      "name": "Baseline Steady-State Monitoring",
+      "result": "PASS",
+      "details": "Processed 100 in-band ticks (1000ms). State: NORMAL_MONITORING, Contacts: CLOSED, Trips: 0"
+    },
+    {
+      "id": "SC-02",
+      "name": "Anti-Chatter Hysteresis & Debounce Timing",
+      "result": "PASS",
+      "details": "Verified 40ms glitch filtering, 120ms trip debounce, 8A hysteresis deadband lockout, and 300ms clear debounce."
+    },
+    {
+      "id": "SC-03",
+      "name": "Sensor Anomaly Detection Suite",
+      "result": "PASS",
+      "details": "Detected frozen ADC reading, unrealistic slew rate jump (6500 A/s), and open-circuit broken wire (0V)."
+    },
+    {
+      "id": "SC-04",
+      "name": "Statistical Noise vs Step Discrimination",
+      "result": "PASS",
+      "details": "Rejected 65A isolated EMI glitch (filtered by median). Correctly verified persistent 45A load step as GENUINE_LOAD_CHANGE."
+    },
+    {
+      "id": "SC-05",
+      "name": "Timed Recovery Sequence Validation",
+      "result": "PASS",
+      "details": "Successfully sequenced through Cooldown (3000ms) -> Soak Pre-check (2000ms) -> Re-arm (500ms) -> Normal."
+    },
+    {
+      "id": "SC-06",
+      "name": "Continuous Fault Injection Stress Benchmark",
+      "result": "PASS",
+      "details": "Completed 10,000 ticks (100.0s simulated). Wall-time: 67.88ms. Avg Tick: 6.79µs, Max Tick: 2474.90µs. Total Transitions: 101, Zero memory leaks, Zero crashes."
+    }
+  ],
+  "performance": {
+    "totalTicks": 10000,
+    "simulatedDurationS": 100,
+    "wallTimeMs": 67.88,
+    "avgTickDurationUs": 6.79,
+    "maxTickDurationUs": 2474.9,
+    "totalTransitions": 101,
+    "trips": 1,
+    "noiseSpikesFiltered": 383,
+    "sensorAnomaliesCaught": 20
+  },
+  "sampleTransitions": [
+    {
+      "timestampMs": 94510,
+      "fromState": "RECOVERY_COOLDOWN",
+      "toState": "TRIPPED_FAULT",
+      "reason": "RECOVERY_ABORT_REFAULT",
+      "currentA": 25.48,
+      "voltageV": 0,
+      "anomalyFlags": 129,
+      "variance": 0.2552,
+      "slewRate": 60.9
+    },
+    {
+      "timestampMs": 94810,
+      "fromState": "TRIPPED_FAULT",
+      "toState": "RECOVERY_COOLDOWN",
+      "reason": "FAULT_CLEARED_DEBOUNCED",
+      "currentA": 24.87,
+      "voltageV": 228.57,
+      "anomalyFlags": 128,
+      "variance": 0.255,
+      "slewRate": 77.4
+    },
+    {
+      "timestampMs": 97810,
+      "fromState": "RECOVERY_COOLDOWN",
+      "toState": "RECOVERY_SOAK",
+      "reason": "COOLDOWN_EXPIRED",
+      "currentA": 24.95,
+      "voltageV": 232.21,
+      "anomalyFlags": 128,
+      "variance": 108.7939,
+      "slewRate": 64.25
+    },
+    {
+      "timestampMs": 98010,
+      "fromState": "RECOVERY_SOAK",
+      "toState": "TRIPPED_FAULT",
+      "reason": "RECOVERY_ABORT_REFAULT",
+      "currentA": 25.09,
+      "voltageV": 230.12,
+      "anomalyFlags": 148,
+      "variance": 64.3251,
+      "slewRate": 3311.98
+    },
+    {
+      "timestampMs": 98310,
+      "fromState": "TRIPPED_FAULT",
+      "toState": "RECOVERY_COOLDOWN",
+      "reason": "FAULT_CLEARED_DEBOUNCED",
+      "currentA": 24.43,
+      "voltageV": 231.57,
+      "anomalyFlags": 128,
+      "variance": 0.3331,
+      "slewRate": 5.43
+    },
+    {
+      "timestampMs": 99510,
+      "fromState": "RECOVERY_COOLDOWN",
+      "toState": "LOCKOUT_LATCHED",
+      "reason": "LOCKOUT_MAX_REFAULTS",
+      "currentA": 25.69,
+      "voltageV": 0,
+      "anomalyFlags": 129,
+      "variance": 0.4017,
+      "slewRate": 101.82
+    },
+    {
+      "timestampMs": 99520,
+      "fromState": "LOCKOUT_LATCHED",
+      "toState": "RECOVERY_COOLDOWN",
+      "reason": "MANUAL_RESET",
+      "currentA": 25.72,
+      "voltageV": 230.13,
+      "anomalyFlags": 128,
+      "variance": 0.3979,
+      "slewRate": 3.27
+    },
+    {
+      "timestampMs": 102520,
+      "fromState": "RECOVERY_COOLDOWN",
+      "toState": "RECOVERY_SOAK",
+      "reason": "COOLDOWN_EXPIRED",
+      "currentA": 24.69,
+      "voltageV": 229.26,
+      "anomalyFlags": 148,
+      "variance": 249.3834,
+      "slewRate": 6430.57
+    },
+    {
+      "timestampMs": 102550,
+      "fromState": "RECOVERY_SOAK",
+      "toState": "TRIPPED_FAULT",
+      "reason": "RECOVERY_ABORT_REFAULT",
+      "currentA": 25.99,
+      "voltageV": 230.43,
+      "anomalyFlags": 132,
+      "variance": 248.8249,
+      "slewRate": 161.4
+    },
+    {
+      "timestampMs": 102850,
+      "fromState": "TRIPPED_FAULT",
+      "toState": "RECOVERY_COOLDOWN",
+      "reason": "FAULT_CLEARED_DEBOUNCED",
+      "currentA": 24.38,
+      "voltageV": 228.51,
+      "anomalyFlags": 128,
+      "variance": 0.2105,
+      "slewRate": 60.08
+    },
+    {
+      "timestampMs": 104510,
+      "fromState": "RECOVERY_COOLDOWN",
+      "toState": "TRIPPED_FAULT",
+      "reason": "RECOVERY_ABORT_REFAULT",
+      "currentA": 24.78,
+      "voltageV": 0,
+      "anomalyFlags": 129,
+      "variance": 0.3709,
+      "slewRate": 49.78
+    },
+    {
+      "timestampMs": 104810,
+      "fromState": "TRIPPED_FAULT",
+      "toState": "RECOVERY_COOLDOWN",
+      "reason": "FAULT_CLEARED_DEBOUNCED",
+      "currentA": 24.98,
+      "voltageV": 229.51,
+      "anomalyFlags": 128,
+      "variance": 108.2995,
+      "slewRate": 21.63
+    },
+    {
+      "timestampMs": 107810,
+      "fromState": "RECOVERY_COOLDOWN",
+      "toState": "RECOVERY_SOAK",
+      "reason": "COOLDOWN_EXPIRED",
+      "currentA": 24.43,
+      "voltageV": 229.92,
+      "anomalyFlags": 128,
+      "variance": 0.3228,
+      "slewRate": 109.92
+    },
+    {
+      "timestampMs": 107940,
+      "fromState": "RECOVERY_SOAK",
+      "toState": "LOCKOUT_LATCHED",
+      "reason": "LOCKOUT_MAX_REFAULTS",
+      "currentA": 25.78,
+      "voltageV": 232.39,
+      "anomalyFlags": 132,
+      "variance": 0.261,
+      "slewRate": 168.26
+    },
+    {
+      "timestampMs": 107940,
+      "fromState": "LOCKOUT_LATCHED",
+      "toState": "RECOVERY_COOLDOWN",
+      "reason": "MANUAL_RESET",
+      "currentA": 25.78,
+      "voltageV": 232.39,
+      "anomalyFlags": 132,
+      "variance": 0.261,
+      "slewRate": 168.26
+    }
+  ]
+}

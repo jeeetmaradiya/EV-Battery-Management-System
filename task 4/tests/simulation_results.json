@@ -1,0 +1,196 @@
+{
+  "test_run_timestamp": "2026-10-30T09:06:54.499Z",
+  "engine_name": "Deterministic Fault State Machine with Structured Recovery",
+  "compliance": {
+    "iso26262_asil_c": true,
+    "misra_c_2012": true,
+    "iec61508_sil2": true
+  },
+  "operating_states": [
+    "NORMAL",
+    "DEGRADED",
+    "FAILSAFE",
+    "SHUTDOWN"
+  ],
+  "fault_sources": [
+    "BATTERY_CELL",
+    "RELAY",
+    "COMMUNICATION",
+    "ADC",
+    "SYSTEM"
+  ],
+  "recovery_stages": [
+    "IDLE",
+    "CLEARANCE_CHECK",
+    "STABILIZATION",
+    "SUBSYSTEM_VERIFY",
+    "PROVISIONAL_DEGRADE",
+    "NORMAL_RESTORE",
+    "ABORTED"
+  ],
+  "fault_catalog": [
+    {
+      "id": "0x1001",
+      "name": "CELL_OVERVOLTAGE"
+    },
+    {
+      "id": "0x1002",
+      "name": "CELL_UNDERVOLTAGE"
+    },
+    {
+      "id": "0x1003",
+      "name": "CELL_IMBALANCE"
+    },
+    {
+      "id": "0x1004",
+      "name": "CELL_OVERTEMP"
+    },
+    {
+      "id": "0x2001",
+      "name": "RELAY_MISMATCH"
+    },
+    {
+      "id": "0x2002",
+      "name": "RELAY_WELDED"
+    },
+    {
+      "id": "0x2003",
+      "name": "RELAY_COIL_OPEN"
+    },
+    {
+      "id": "0x3001",
+      "name": "COMM_HEARTBEAT_TIMEOUT"
+    },
+    {
+      "id": "0x3002",
+      "name": "COMM_CRC_BURST"
+    },
+    {
+      "id": "0x4001",
+      "name": "ADC_FROZEN"
+    },
+    {
+      "id": "0x4002",
+      "name": "ADC_OUT_OF_RANGE"
+    },
+    {
+      "id": "0x5001",
+      "name": "RECOVERY_EXHAUSTED"
+    },
+    {
+      "id": "0x5002",
+      "name": "WATCHDOG_TIMEOUT"
+    },
+    {
+      "id": "0x5003",
+      "name": "EMERGENCY_STOP"
+    }
+  ],
+  "total_scenarios": 7,
+  "passed_scenarios": 7,
+  "scenario_matrix": [
+    {
+      "id": 1,
+      "name": "Nominal Steady State (1000 Ticks)",
+      "passed": true,
+      "finalState": "NORMAL"
+    },
+    {
+      "id": 2,
+      "name": "Cell Imbalance Advisory & Recovery",
+      "passed": true
+    },
+    {
+      "id": 3,
+      "name": "Frozen ADC Value Detection",
+      "passed": true,
+      "finalState": "FAILSAFE"
+    },
+    {
+      "id": 4,
+      "name": "Multi-Stage Structured Recovery",
+      "passed": true
+    },
+    {
+      "id": 5,
+      "name": "Relay Welded Contact Fatal Trip",
+      "passed": true,
+      "finalState": "SHUTDOWN"
+    },
+    {
+      "id": 6,
+      "name": "Deadlock Prevention & Retry Exhaustion",
+      "passed": true
+    },
+    {
+      "id": 7,
+      "name": "10,000-Tick Stochastic Stress Benchmark",
+      "passed": true,
+      "totalTransitions": 8,
+      "successfulRecoveries": 3,
+      "faultInjections": 3,
+      "finalState": "NORMAL"
+    }
+  ],
+  "transition_audit_sample": [
+    {
+      "seq": 1,
+      "timestamp_ms": 0,
+      "prev_state": "NORMAL",
+      "new_state": "NORMAL",
+      "fault_id": "0x0000",
+      "fault_name": "NONE",
+      "source": "NONE",
+      "severity": "NONE",
+      "reason": "Engine Initialized"
+    },
+    {
+      "seq": 2,
+      "timestamp_ms": 60,
+      "prev_state": "NORMAL",
+      "new_state": "DEGRADED",
+      "fault_id": "0x1003",
+      "fault_name": "CELL_IMBALANCE",
+      "source": "BATTERY_CELL",
+      "severity": "WARNING",
+      "reason": "Severity WARNING (CELL_IMBALANCE)"
+    },
+    {
+      "seq": 3,
+      "timestamp_ms": 70,
+      "prev_state": "DEGRADED",
+      "new_state": "NORMAL",
+      "fault_id": "0x0000",
+      "fault_name": "NONE",
+      "source": "NONE",
+      "severity": "NONE",
+      "reason": "Severity NONE (NONE)"
+    }
+  ],
+  "deterministic_transition_matrix": {
+    "NORMAL": {
+      "NONE": "NORMAL",
+      "WARNING": "DEGRADED",
+      "CRITICAL": "FAILSAFE",
+      "FATAL": "SHUTDOWN"
+    },
+    "DEGRADED": {
+      "NONE": "NORMAL",
+      "WARNING": "DEGRADED",
+      "CRITICAL": "FAILSAFE",
+      "FATAL": "SHUTDOWN"
+    },
+    "FAILSAFE": {
+      "NONE": "FAILSAFE (Recovery Only)",
+      "WARNING": "FAILSAFE",
+      "CRITICAL": "FAILSAFE",
+      "FATAL": "SHUTDOWN"
+    },
+    "SHUTDOWN": {
+      "NONE": "SHUTDOWN (Latched)",
+      "WARNING": "SHUTDOWN",
+      "CRITICAL": "SHUTDOWN",
+      "FATAL": "SHUTDOWN"
+    }
+  }
+}

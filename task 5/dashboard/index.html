@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blynk IoT BMS Console | Event-Driven Telemetry & Live Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #0B0F17;
+            --bg-card: #111827;
+            --bg-card-hover: #162032;
+            --border: #1E293B;
+            --border-highlight: #334155;
+            --text-primary: #F8FAFC;
+            --text-secondary: #94A3B8;
+            --text-muted: #64748B;
+            --blynk-green: #22C55E;
+            --blynk-green-glow: rgba(34, 197, 94, 0.25);
+            --cyan-accent: #06B6D4;
+            --cyan-glow: rgba(6, 182, 212, 0.25);
+            --amber-warn: #F59E0B;
+            --amber-glow: rgba(245, 158, 11, 0.25);
+            --red-alert: #EF4444;
+            --red-glow: rgba(239, 68, 68, 0.25);
+            --purple-failsafe: #8B5CF6;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        /* ─── HEADER / NAVBAR ─── */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 24px;
+            background: linear-gradient(180deg, #131D2E 0%, #0F172A 100%);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+        }
+
+        .brand-container {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .blynk-logo {
+            width: 38px;
+            height: 38px;
+            background: linear-gradient(135deg, #10B981, #059669);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 15px var(--blynk-green-glow);
+            font-weight: 800;
+            font-size: 20px;
+            color: #FFFFFF;
+        }
+
+        .brand-text h1 {
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .brand-text h1 span.tag {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 8px;
+            background: rgba(34, 197, 94, 0.15);
+            color: var(--blynk-green);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            border-radius: 6px;
+            text-transform: uppercase;
+        }
+
+        .brand-text p {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .header-status-group {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        /* Stream Mode Pill: LIVE vs QUEUED */
+        .stream-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            border-radius: 30px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            font-family: 'JetBrains Mono', monospace;
+            transition: all 0.3s ease;
+        }
+
+        .stream-pill.live {
+            background: rgba(34, 197, 94, 0.15);
+            color: var(--blynk-green);
+            border: 1px solid var(--blynk-green);
+            box-shadow: 0 0 16px var(--blynk-green-glow);
+        }
+
+        .stream-pill.queued {
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--amber-warn);
+            border: 1px solid var(--amber-warn);
+            box-shadow: 0 0 16px var(--amber-glow);
+            animation: pulse-border 1.5s infinite;
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .stream-pill.live .pulse-dot {
+            background: var(--blynk-green);
+            box-shadow: 0 0 8px var(--blynk-green);
+            animation: blink 1.2s infinite;
+        }
+
+        .stream-pill.queued .pulse-dot {
+            background: var(--amber-warn);
+            box-shadow: 0 0 8px var(--amber-warn);
+            animation: blink 0.6s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.3; transform: scale(0.8); }
+        }
+
+        @keyframes pulse-border {
+            0%, 100% { box-shadow: 0 0 8px var(--amber-glow); }
+            50% { box-shadow: 0 0 20px rgba(245, 158, 11, 0.5); }
+        }
+
+        .wifi-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            background: #1E293B;
+            border-radius: 8px;
+            border: 1px solid var(--border-highlight);
+            font-size: 12px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .wifi-bars {
+            display: flex;
+            align-items: flex-end;
+            gap: 2px;
+            height: 12px;
+        }
+
+        .wifi-bar {
+            width: 3px;
+            background: #475569;
+            border-radius: 1px;
+        }
+
+        .wifi-bar:nth-child(1) { height: 3px; }
+        .wifi-bar:nth-child(2) { height: 6px; }
+        .wifi-bar:nth-child(3) { height: 9px; }
+        .wifi-bar:nth-child(4) { height: 12px; }
+
+        .wifi-bars.excellent .wifi-bar { background: var(--blynk-green); }
+        .wifi-bars.good .wifi-bar:nth-child(-n+3) { background: var(--cyan-accent); }
+        .wifi-bars.fair .wifi-bar:nth-child(-n+2) { background: var(--amber-warn); }
+        .wifi-bars.poor .wifi-bar:nth-child(1) { background: var(--red-alert); }
+        .wifi-bars.lost .wifi-bar { background: #475569; }
+
+        /* ─── QUICK METRICS BANNER ─── */
+        .quick-banner {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .metric-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 16px;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--border-highlight);
+        }
+
+        .metric-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .metric-vpin {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--cyan-accent);
+            font-weight: 600;
+        }
+
+        .metric-value {
+            font-size: 24px;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-primary);
+        }
+
+        .metric-unit {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-left: 2px;
+        }
+
+        .metric-sub {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 6px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* ─── MAIN DASHBOARD GRID ─── */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .panel-title {
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .panel-badge {
+            font-size: 10px;
+            font-family: 'JetBrains Mono', monospace;
+            padding: 2px 8px;
+            border-radius: 4px;
+            background: #1E293B;
+            color: var(--text-secondary);
+        }
+
+        /* ─── 12-CELL VOLTAGE MATRIX ─── */
+        .cell-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+
+        @media (max-width: 640px) {
+            .cell-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        .cell-item {
+            background: #0F172A;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px;
+            position: relative;
+            transition: all 0.2s;
+        }
+
+        .cell-item.strongest {
+            border-color: var(--blynk-green);
+            background: rgba(34, 197, 94, 0.05);
+            box-shadow: 0 0 10px var(--blynk-green-glow);
+        }
+
+        .cell-item.weakest {
+            border-color: var(--amber-warn);
+            background: rgba(245, 158, 11, 0.05);
+            box-shadow: 0 0 10px var(--amber-glow);
+        }
+
+        .cell-item.faulted {
+            border-color: var(--red-alert);
+            background: rgba(239, 68, 68, 0.1);
+            box-shadow: 0 0 15px var(--red-glow);
+        }
+
+        .cell-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .cell-id {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-secondary);
+        }
+
+        .cell-tag {
+            font-size: 9px;
+            font-weight: 800;
+            padding: 1px 5px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .cell-tag.max {
+            background: rgba(34, 197, 94, 0.2);
+            color: var(--blynk-green);
+        }
+
+        .cell-tag.min {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--amber-warn);
+        }
+
+        .cell-voltage {
+            font-size: 16px;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', monospace;
+            margin-bottom: 6px;
+        }
+
+        .cell-bar-bg {
+            height: 4px;
+            background: #1E293B;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .cell-bar-fill {
+            height: 100%;
+            background: var(--cyan-accent);
+            border-radius: 2px;
+            transition: width 0.3s ease, background 0.3s ease;
+        }
+
+        .cell-item.strongest .cell-bar-fill { background: var(--blynk-green); }
+        .cell-item.weakest .cell-bar-fill { background: var(--amber-warn); }
+        .cell-item.faulted .cell-bar-fill { background: var(--red-alert); }
+
+        /* ─── EXTREMA DUAL CARDS ─── */
+        .extrema-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .extrema-box {
+            padding: 12px 16px;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .extrema-box.strong {
+            background: rgba(34, 197, 94, 0.08);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .extrema-box.weak {
+            background: rgba(245, 158, 11, 0.08);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .extrema-info .label {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .extrema-box.strong .label { color: var(--blynk-green); }
+        .extrema-box.weak .label { color: var(--amber-warn); }
+
+        .extrema-info .val {
+            font-size: 18px;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', monospace;
+            margin-top: 2px;
+        }
+
+        /* ─── HARDWARE & FAULT STATUS CARDS (RIGHT COLUMN) ─── */
+        .status-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        /* FSM Operating State Card */
+        .fsm-state-box {
+            padding: 14px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: #0F172A;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.3s ease;
+        }
+
+        .fsm-state-box.state-NORMAL {
+            border-color: var(--blynk-green);
+            background: rgba(34, 197, 94, 0.05);
+        }
+
+        .fsm-state-box.state-DEGRADED {
+            border-color: var(--amber-warn);
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .fsm-state-box.state-FAILSAFE {
+            border-color: var(--red-alert);
+            background: rgba(239, 68, 68, 0.1);
+            animation: pulse-border 1.5s infinite;
+        }
+
+        .fsm-state-box.state-SHUTDOWN {
+            border-color: var(--purple-failsafe);
+            background: rgba(139, 92, 246, 0.1);
+        }
+
+        .state-title {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .state-val {
+            font-size: 18px;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', monospace;
+            margin-top: 2px;
+        }
+
+        .state-NORMAL .state-val { color: var(--blynk-green); }
+        .state-DEGRADED .state-val { color: var(--amber-warn); }
+        .state-FAILSAFE .state-val { color: var(--red-alert); }
+        .state-SHUTDOWN .state-val { color: var(--purple-failsafe); }
+
+        /* Relay Dual Card */
+        .relay-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .relay-item {
+            background: #0F172A;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px;
+        }
+
+        .relay-item.active {
+            border-color: var(--blynk-green);
+            background: rgba(34, 197, 94, 0.05);
+        }
+
+        .relay-item.warning {
+            border-color: var(--red-alert);
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .relay-title {
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .relay-status {
+            font-size: 13px;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* ─── QUEUE DEPTH & WI-FI GAUGES ─── */
+        .queue-box {
+            background: #0F172A;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .queue-bar-container {
+            margin: 10px 0;
+        }
+
+        .queue-bar-bg {
+            height: 10px;
+            background: #1E293B;
+            border-radius: 5px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .queue-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--cyan-accent), var(--amber-warn));
+            border-radius: 5px;
+            transition: width 0.3s ease;
+        }
+
+        .queue-bar-fill.high {
+            background: linear-gradient(90deg, var(--amber-warn), var(--red-alert));
+        }
+
+        .queue-stats-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* ─── INTERACTIVE CONTROLS ─── */
+        .controls-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .btn {
+            background: #1E293B;
+            color: var(--text-primary);
+            border: 1px solid var(--border-highlight);
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn:hover {
+            background: #2D3D54;
+            border-color: #475569;
+            transform: translateY(-1px);
+        }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.15);
+            color: #FCA5A5;
+            border-color: rgba(239, 68, 68, 0.4);
+        }
+
+        .btn-danger:hover {
+            background: rgba(239, 68, 68, 0.3);
+            border-color: var(--red-alert);
+        }
+
+        .btn-success {
+            background: rgba(34, 197, 94, 0.15);
+            color: #86EFAC;
+            border-color: rgba(34, 197, 94, 0.4);
+        }
+
+        .btn-success:hover {
+            background: rgba(34, 197, 94, 0.3);
+            border-color: var(--blynk-green);
+        }
+
+        .btn-warning {
+            background: rgba(245, 158, 11, 0.15);
+            color: #FDE68A;
+            border-color: rgba(245, 158, 11, 0.4);
+        }
+
+        .btn-warning:hover {
+            background: rgba(245, 158, 11, 0.3);
+            border-color: var(--amber-warn);
+        }
+
+        .control-section-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 14px;
+            margin-bottom: 6px;
+        }
+
+        /* ─── AUDIT STREAM LOG ─── */
+        .log-table-container {
+            max-height: 280px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: #090D14;
+        }
+
+        table.log-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            font-family: 'JetBrains Mono', monospace;
+            text-align: left;
+        }
+
+        table.log-table th {
+            background: #111827;
+            padding: 8px 12px;
+            color: var(--text-secondary);
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        table.log-table td {
+            padding: 6px 12px;
+            border-bottom: 1px solid #162032;
+            color: var(--text-primary);
+        }
+
+        table.log-table tr:hover {
+            background: #131E2F;
+        }
+
+        .badge-live {
+            color: var(--blynk-green);
+            background: rgba(34, 197, 94, 0.15);
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-weight: 700;
+        }
+
+        .badge-queued {
+            color: var(--amber-warn);
+            background: rgba(245, 158, 11, 0.15);
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-weight: 700;
+        }
+
+        /* ─── VIRTUAL PIN MAP ACCORDION ─── */
+        .vpin-matrix {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .vpin-badge {
+            background: #0F172A;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+        }
+
+        .vpin-name { color: var(--cyan-accent); font-weight: 700; }
+        .vpin-val { color: var(--text-primary); font-weight: 600; }
+    </style>
+</head>
+<body>
+
+    <!-- ─── HEADER / NAVBAR ─── -->
+    <header>
+        <div class="brand-container">
+            <div class="blynk-logo">B</div>
+            <div class="brand-text">
+                <h1>Blynk IoT BMS Console <span class="tag">ISO 26262 ASIL-C</span></h1>
+                <p>Event-Driven Telemetry &amp; Resilient Offline Circular Queue</p>
+            </div>
+        </div>
+
+        <div class="header-status-group">
+            <!-- Stream Origin Indicator (Operator Live vs Queued Badge) -->
+            <div id="streamPill" class="stream-pill live">
+                <div class="pulse-dot"></div>
+                <span id="streamPillText">LIVE STREAM</span>
+            </div>
+
+            <!-- Wi-Fi Link & RSSI Indicator -->
+            <div class="wifi-badge">
+                <div id="wifiBars" class="wifi-bars good">
+                    <div class="wifi-bar"></div>
+                    <div class="wifi-bar"></div>
+                    <div class="wifi-bar"></div>
+                    <div class="wifi-bar"></div>
+                </div>
+                <span id="wifiRssiText">-62 dBm</span>
+                <span id="wifiStateText" style="color: var(--blynk-green); font-weight: 700;">ONLINE</span>
+            </div>
+
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-secondary);">
+                UPTIME: <span id="uptimeText" style="color: #FFFFFF; font-weight: 700;">00:00:00</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- ─── TOP QUICK-STATS ROW ─── -->
+    <div class="quick-banner">
+        <div class="metric-card">
+            <div class="metric-label">
+                <span>Pack Total Voltage</span>
+                <span class="metric-vpin">V0</span>
+            </div>
+            <div class="metric-value"><span id="valPackV">44.40</span><span class="metric-unit">V</span></div>
+            <div class="metric-sub">12S Li-Ion Architecture</div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-label">
+                <span>Pack Current</span>
+                <span class="metric-vpin">V1</span>
+            </div>
+            <div class="metric-value"><span id="valPackI">+1.20</span><span class="metric-unit">A</span></div>
+            <div class="metric-sub" id="currentSub">Constant Current Charge</div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-label">
+                <span>Peak Temperature</span>
+                <span class="metric-vpin">V2</span>
+            </div>
+            <div class="metric-value"><span id="valPackT">27.0</span><span class="metric-unit">°C</span></div>
+            <div class="metric-sub">4x Surface NTC Array</div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-label">
+                <span>Cell Imbalance Delta</span>
+                <span class="metric-vpin">V5</span>
+            </div>
+            <div class="metric-value"><span id="valDeltaMv">0</span><span class="metric-unit">mV</span></div>
+            <div class="metric-sub" id="imbalanceSub">Balanced (Threshold: 25mV)</div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-label">
+                <span>Offline Queue Depth</span>
+                <span class="metric-vpin">V12</span>
+            </div>
+            <div class="metric-value"><span id="valQueueDepth">0</span><span class="metric-unit">/ 64</span></div>
+            <div class="metric-sub" id="queueStatusSub">Queue Empty (Live Mode)</div>
+        </div>
+    </div>
+
+    <!-- ─── MAIN CONTENT GRID ─── -->
+    <div class="main-grid">
+        <!-- LEFT COLUMN: 12-CELL BMS MATRIX & EXTREMA -->
+        <div class="panel-card">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <span>12-Series Cell Stack Voltages</span>
+                    <span class="panel-badge">V16 – V27</span>
+                </div>
+                <div style="font-size: 11px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace;">
+                    Deadband: ±25 mV
+                </div>
+            </div>
+
+            <!-- 12-Cell Grid -->
+            <div class="cell-grid" id="cellsContainer">
+                <!-- Populated via JS -->
+            </div>
+
+            <!-- Extrema Highlight Row -->
+            <div class="extrema-row">
+                <div class="extrema-box strong">
+                    <div class="extrema-info">
+                        <div class="label">Strongest Cell (V4, V6)</div>
+                        <div class="val" id="strongestCellBox">Cell 1 • 3700 mV</div>
+                    </div>
+                    <div style="font-size: 22px;">⚡</div>
+                </div>
+
+                <div class="extrema-box weak">
+                    <div class="extrema-info">
+                        <div class="label">Weakest Cell (V3, V7)</div>
+                        <div class="val" id="weakestCellBox">Cell 1 • 3700 mV</div>
+                    </div>
+                    <div style="font-size: 22px;">⚠️</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN: SYSTEM STATE, RELAYS, WI-FI FSM & OFFLINE QUEUE -->
+        <div class="status-stack">
+            <!-- Operating State & Faults -->
+            <div class="panel-card">
+                <div class="panel-header">
+                    <div class="panel-title">Operating State &amp; Fault Status</div>
+                    <span class="panel-badge">V8 / V9</span>
+                </div>
+
+                <div id="fsmStateBox" class="fsm-state-box state-NORMAL">
+                    <div>
+                        <div class="state-title">FSM State</div>
+                        <div class="state-val" id="fsmStateText">NORMAL</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div class="state-title">Active Fault ID</div>
+                        <div class="state-val" id="activeFaultText" style="color: var(--text-primary);">0x0000</div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 10px; font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text-secondary);" id="faultReasonText">
+                    Diagnostics: All Subsystems Nominal
+                </div>
+
+                <!-- Relays -->
+                <div class="relay-grid">
+                    <div class="relay-item active" id="mainRelayCard">
+                        <div class="relay-title">Main Contactor (V10)</div>
+                        <div class="relay-status" id="mainRelayStatus">CLOSED (NOMINAL)</div>
+                    </div>
+                    <div class="relay-item" id="prechargeRelayCard">
+                        <div class="relay-title">Precharge Relay</div>
+                        <div class="relay-status" id="prechargeRelayStatus">DISENGAGED</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Offline Queue & Replay Progress -->
+            <div class="panel-card">
+                <div class="panel-header">
+                    <div class="panel-title">Offline Circular Queue Buffering</div>
+                    <span class="panel-badge">Capacity: 64 Pkts</span>
+                </div>
+
+                <div class="queue-box">
+                    <div class="queue-stats-row">
+                        <span>BUFFER OCCUPANCY</span>
+                        <span id="queueRatioText">0 / 64 (0%)</span>
+                    </div>
+
+                    <div class="queue-bar-container">
+                        <div class="queue-bar-bg">
+                            <div class="queue-bar-fill" id="queueBarFill" style="width: 0%;"></div>
+                        </div>
+                    </div>
+
+                    <div class="queue-stats-row" style="margin-top: 8px;">
+                        <span>Enqueued: <b id="statEnqueued" style="color:#FFF;">0</b></span>
+                        <span>Drained: <b id="statDrained" style="color:#FFF;">0</b></span>
+                        <span>Dropped: <b id="statDropped" style="color:var(--red-alert);">0</b></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Non-Blocking Wi-Fi FSM Status -->
+            <div class="panel-card">
+                <div class="panel-header">
+                    <div class="panel-title">Wi-Fi &amp; Blynk FSM Engine</div>
+                    <span class="panel-badge">V11 / V15</span>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; font-size: 12px; font-family: 'JetBrains Mono', monospace; margin-bottom: 8px;">
+                    <span style="color: var(--text-secondary);">FSM Phase:</span>
+                    <span id="wifiFsmPhaseText" style="color: var(--blynk-green); font-weight: 700;">BLYNK_CONNECTED</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 12px; font-family: 'JetBrains Mono', monospace; margin-bottom: 8px;">
+                    <span style="color: var(--text-secondary);">Filtered RSSI:</span>
+                    <span id="wifiRssiValText">-62 dBm (GOOD)</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 12px; font-family: 'JetBrains Mono', monospace;">
+                    <span style="color: var(--text-secondary);">Reconnect Attempts:</span>
+                    <span id="wifiRetriesText">0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ─── INTERACTIVE DEMONSTRATION CONTROL DECK ─── -->
+    <div class="controls-card">
+        <div class="panel-title" style="margin-bottom: 12px;">Interactive Verification &amp; Demonstration Control Deck</div>
+
+        <!-- Outage Controls -->
+        <div class="control-section-title">1. Network Outage &amp; Non-Blocking Reconnection Scenarios</div>
+        <div class="btn-group">
+            <button class="btn btn-danger" onclick="triggerAction('wifi_disconnect')">⚡ Cut Wi-Fi Link (Simulate Outage)</button>
+            <button class="btn btn-success" onclick="triggerAction('wifi_reconnect')">🔄 Restore Wi-Fi Link (Trigger Non-Blocking FSM &amp; FIFO Drain)</button>
+            <button class="btn btn-warning" onclick="triggerAction('rssi_degrade')">📶 Degrade RSSI to -86 dBm (POOR)</button>
+            <button class="btn btn-success" onclick="triggerAction('rssi_restore')">📶 Restore RSSI to -55 dBm (EXCELLENT)</button>
+            <button class="btn" onclick="triggerAction('burst_events')">📦 Enqueue 15 Burst Events</button>
+        </div>
+
+        <!-- Fault Injection Controls -->
+        <div class="control-section-title">2. Safety-Critical Fault Injection Scenarios</div>
+        <div class="btn-group">
+            <button class="btn btn-danger" onclick="triggerAction('inject_ovp')">⚠️ Inject Cell Overvoltage (4.28V on C4) &rarr; FAILSAFE</button>
+            <button class="btn btn-danger" onclick="triggerAction('inject_uvp')">⚠️ Inject Cell Undervoltage (2.75V on C8) &rarr; FAILSAFE</button>
+            <button class="btn btn-warning" onclick="triggerAction('inject_imbalance')">⚡ Inject Severe Imbalance (300mV) &rarr; DEGRADED</button>
+            <button class="btn btn-danger" onclick="triggerAction('inject_welded_relay')">🔥 Inject Welded Relay Contacts &rarr; SHUTDOWN</button>
+            <button class="btn btn-success" onclick="triggerAction('clear_faults')">✅ Clear All Faults &amp; Restore NORMAL</button>
+        </div>
+
+        <!-- Deadband Controls -->
+        <div class="control-section-title">3. Event-Driven Telemetry Trigger Controls</div>
+        <div class="btn-group">
+            <button class="btn" onclick="triggerAction('cell_delta_step')">📈 Step Cell 1 by +35mV (Exceeds Deadband)</button>
+            <button class="btn" onclick="triggerAction('force_heartbeat')">💓 Force Heartbeat Keepalive</button>
+        </div>
+    </div>
+
+    <!-- ─── BLYNK VIRTUAL PIN MATRIX ─── -->
+    <div class="controls-card">
+        <div class="panel-header" style="border: none; padding: 0; margin-bottom: 8px;">
+            <div class="panel-title">Blynk IoT Virtual Pin Matrix (V0 – V29)</div>
+            <div style="font-size: 11px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace;">Direct IoT Register Mapping</div>
+        </div>
+        <div class="vpin-matrix" id="vpinMatrix">
+            <!-- Populated via JS -->
+        </div>
+    </div>
+
+    <!-- ─── REAL-TIME AUDIT STREAM LOG ─── -->
+    <div class="controls-card">
+        <div class="panel-header" style="border: none; padding: 0; margin-bottom: 8px;">
+            <div class="panel-title">Live Telemetry Event Audit Stream</div>
+            <div style="font-size: 11px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace;">FIFO Chronological Order</div>
+        </div>
+
+        <div class="log-table-container">
+            <table class="log-table">
+                <thead>
+                    <tr>
+                        <th>Seq ID</th>
+                        <th>Time</th>
+                        <th>Origin</th>
+                        <th>Event Type</th>
+                        <th>Priority</th>
+                        <th>FSM</th>
+                        <th>Extrema</th>
+                        <th>Description / Trigger Reason</th>
+                    </tr>
+                </thead>
+                <tbody id="logTableBody">
+                    <!-- Populated via JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Initialize 12 Cell elements in DOM
+        const cellsContainer = document.getElementById('cellsContainer');
+        for (let i = 0; i < 12; i++) {
+            const div = document.createElement('div');
+            div.className = 'cell-item';
+            div.id = `cellCard_${i}`;
+            div.innerHTML = `
+                <div class="cell-top">
+                    <span class="cell-id">CELL ${String(i+1).padStart(2, '0')}</span>
+                    <span class="cell-tag" id="cellTag_${i}" style="display:none;"></span>
+                </div>
+                <div class="cell-voltage" id="cellVolt_${i}">3.700 V</div>
+                <div class="cell-bar-bg">
+                    <div class="cell-bar-fill" id="cellBar_${i}" style="width: 50%;"></div>
+                </div>
+            `;
+            cellsContainer.appendChild(div);
+        }
+
+        // Trigger action via backend API
+        async function triggerAction(action) {
+            try {
+                const res = await fetch('/api/action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action })
+                });
+                const data = await res.json();
+                console.log('Action response:', data);
+            } catch (err) {
+                console.error('Error invoking action:', err);
+            }
+        }
+
+        // Poll telemetry data from server
+        async function fetchTelemetry() {
+            try {
+                const res = await fetch('/api/data');
+                if (!res.ok) return;
+                const data = await res.json();
+                updateUI(data);
+            } catch (err) {
+                console.error('Fetch error:', err);
+            }
+        }
+
+        function updateUI(d) {
+            const bms = d.bms;
+            const wifi = d.wifi;
+            const queue = d.queue;
+            const pins = d.virtualPins;
+
+            // Uptime
+            document.getElementById('uptimeText').textContent = d.uptime;
+
+            // Stream Mode Pill
+            const pill = document.getElementById('streamPill');
+            const pillText = document.getElementById('streamPillText');
+            if (queue.depth > 0 || queue.isDraining) {
+                pill.className = 'stream-pill queued';
+                pillText.textContent = `QUEUED PLAYBACK (${queue.depth} BACKLOG)`;
+            } else {
+                pill.className = 'stream-pill live';
+                pillText.textContent = 'LIVE STREAM';
+            }
+
+            // Wi-Fi Status & RSSI
+            const wifiBars = document.getElementById('wifiBars');
+            wifiBars.className = `wifi-bars ${wifi.qualityName.toLowerCase()}`;
+            document.getElementById('wifiRssiText').textContent = `${wifi.filteredRssiDbm} dBm`;
+            
+            const wifiStateText = document.getElementById('wifiStateText');
+            wifiStateText.textContent = wifi.isOnline ? 'ONLINE' : wifi.stateName;
+            wifiStateText.style.color = wifi.isOnline ? 'var(--blynk-green)' : (wifi.state === 6 ? 'var(--amber-warn)' : 'var(--red-alert)');
+
+            document.getElementById('wifiFsmPhaseText').textContent = wifi.stateName;
+            document.getElementById('wifiFsmPhaseText').style.color = wifi.isOnline ? 'var(--blynk-green)' : 'var(--amber-warn)';
+            document.getElementById('wifiRssiValText').textContent = `${wifi.filteredRssiDbm} dBm (${wifi.qualityName})`;
+            document.getElementById('wifiRetriesText').textContent = `${wifi.reconnectAttempts} (Backoff: ${wifi.backoffIntervalMs}ms)`;
+
+            // Quick Banner
+            document.getElementById('valPackV').textContent = (bms.packVoltageMv / 1000).toFixed(2);
+            document.getElementById('valPackI').textContent = (bms.packCurrentMa >= 0 ? '+' : '') + (bms.packCurrentMa / 1000).toFixed(2);
+            document.getElementById('valPackT').textContent = Math.max(...bms.temperaturesC).toFixed(1);
+            document.getElementById('valDeltaMv').textContent = bms.cellDeltaMv;
+
+            const deltaElem = document.getElementById('valDeltaMv');
+            if (bms.cellDeltaMv > 120) deltaElem.style.color = 'var(--red-alert)';
+            else if (bms.cellDeltaMv > 50) deltaElem.style.color = 'var(--amber-warn)';
+            else deltaElem.style.color = 'var(--blynk-green)';
+
+            document.getElementById('valQueueDepth').textContent = queue.depth;
+            document.getElementById('queueStatusSub').textContent = queue.depth > 0 ? 
+                `Buffering Offline Backlog` : `Queue Empty (Live Real-Time)`;
+
+            // 12 Cells
+            for (let i = 0; i < 12; i++) {
+                const mv = bms.cellVoltagesMv[i];
+                const card = document.getElementById(`cellCard_${i}`);
+                const tag = document.getElementById(`cellTag_${i}`);
+                const voltText = document.getElementById(`cellVolt_${i}`);
+                const bar = document.getElementById(`cellBar_${i}`);
+
+                voltText.textContent = `${(mv / 1000).toFixed(3)} V`;
+                let pct = Math.max(0, Math.min(100, ((mv - 2800) / (4250 - 2800)) * 100));
+                bar.style.width = `${pct}%`;
+
+                card.className = 'cell-item';
+                tag.style.display = 'none';
+
+                if (mv >= 4250 || mv <= 2800) {
+                    card.classList.add('faulted');
+                    tag.style.display = 'block';
+                    tag.textContent = mv >= 4250 ? 'OVP' : 'UVP';
+                    tag.className = 'cell-tag min';
+                    tag.style.color = 'var(--red-alert)';
+                } else if (i === bms.strongestCellIdx && bms.cellDeltaMv >= 15) {
+                    card.classList.add('strongest');
+                    tag.style.display = 'block';
+                    tag.textContent = 'MAX';
+                    tag.className = 'cell-tag max';
+                } else if (i === bms.weakestCellIdx && bms.cellDeltaMv >= 15) {
+                    card.classList.add('weakest');
+                    tag.style.display = 'block';
+                    tag.textContent = 'MIN';
+                    tag.className = 'cell-tag min';
+                }
+            }
+
+            // Extrema Highlights
+            document.getElementById('strongestCellBox').textContent = 
+                `Cell ${bms.strongestCellIdx + 1} • ${bms.strongestCellMv} mV`;
+            document.getElementById('weakestCellBox').textContent = 
+                `Cell ${bms.weakestCellIdx + 1} • ${bms.weakestCellMv} mV`;
+
+            // FSM State Box
+            const stateBox = document.getElementById('fsmStateBox');
+            stateBox.className = `fsm-state-box state-${pins.V8}`;
+            document.getElementById('fsmStateText').textContent = pins.V8;
+            document.getElementById('activeFaultText').textContent = pins.V9;
+            document.getElementById('faultReasonText').textContent = `Diagnostics: ${bms.faultReason || 'All Subsystems Nominal'}`;
+
+            // Relays
+            const mainRelay = document.getElementById('mainRelayCard');
+            const mainRelayStatus = document.getElementById('mainRelayStatus');
+            const isMainClosed = (bms.relayStatusFlags & 0x02) !== 0;
+            const isWelded = (bms.relayStatusFlags & 0x20) !== 0;
+
+            if (isWelded) {
+                mainRelay.className = 'relay-item warning';
+                mainRelayStatus.textContent = 'WELDED CONTACT ALARM';
+                mainRelayStatus.style.color = 'var(--red-alert)';
+            } else if (isMainClosed) {
+                mainRelay.className = 'relay-item active';
+                mainRelayStatus.textContent = 'CLOSED (NOMINAL)';
+                mainRelayStatus.style.color = 'var(--blynk-green)';
+            } else {
+                mainRelay.className = 'relay-item';
+                mainRelayStatus.textContent = 'OPEN (ISOLATED)';
+                mainRelayStatus.style.color = 'var(--text-secondary)';
+            }
+
+            // Queue Gauges
+            const qPct = Math.round((queue.depth / queue.capacity) * 100);
+            document.getElementById('queueRatioText').textContent = `${queue.depth} / ${queue.capacity} (${qPct}%)`;
+            const qBar = document.getElementById('queueBarFill');
+            qBar.style.width = `${qPct}%`;
+            qBar.className = (qPct >= 75) ? 'queue-bar-fill high' : 'queue-bar-fill';
+
+            document.getElementById('statEnqueued').textContent = queue.totalEnqueued;
+            document.getElementById('statDrained').textContent = queue.totalDequeued;
+            document.getElementById('statDropped').textContent = queue.overflowDropped;
+
+            // Virtual Pin Matrix
+            const vpinContainer = document.getElementById('vpinMatrix');
+            vpinContainer.innerHTML = '';
+            for (const [pin, val] of Object.entries(pins)) {
+                const b = document.createElement('div');
+                b.className = 'vpin-badge';
+                b.innerHTML = `<span class="vpin-name">${pin}</span><span class="vpin-val">${val}</span>`;
+                vpinContainer.appendChild(b);
+            }
+
+            // Event Log Table
+            const tbody = document.getElementById('logTableBody');
+            tbody.innerHTML = '';
+            (d.eventLog || []).slice(0, 15).forEach(evt => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>#${evt.seqId}</td>
+                    <td>${evt.timestamp}</td>
+                    <td><span class="${evt.origin === 'LIVE' ? 'badge-live' : 'badge-queued'}">${evt.origin}</span></td>
+                    <td><b>${evt.type}</b></td>
+                    <td>${evt.priority}</td>
+                    <td>${evt.fsmState}</td>
+                    <td>${evt.strongest} / ${evt.weakest}</td>
+                    <td style="color: var(--text-secondary);">${evt.reason}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Poll every 350ms
+        setInterval(fetchTelemetry, 350);
+        fetchTelemetry();
+    </script>
+</body>
+</html>

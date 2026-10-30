@@ -1,0 +1,38 @@
+# Operating System Metadata
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.lnk
+
+# Node.js dependencies and logs
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Build artifacts & compiled binaries
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.dylib
+*.out
+*.app
+
+# IDE & Editor caches
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.cproject
+.settings/
+
+# Temporary / Scratch files
+tmp/
+temp/
+*.tmp
+*.bak

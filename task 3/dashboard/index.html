@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flicker-Free LCD Display Engine - Real-Time Dashboard</title>
+    <style>
+        :root {
+            --bg-primary: #0a0f1d;
+            --bg-card: #131d33;
+            --bg-card-border: #1f2e4d;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-cyan: #06b6d4;
+            --accent-green: #10b981;
+            --accent-amber: #f59e0b;
+            --accent-rose: #f43f5e;
+            --lcd-bg: #102a18;
+            --lcd-text: #39ff14;
+            --lcd-pixel-off: #16361f;
+            --lcd-border: #22522c;
+            --lcd-naive-bg: #102a18;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            padding: 24px;
+            min-height: 100vh;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--bg-card-border);
+            padding-bottom: 16px;
+            margin-bottom: 24px;
+        }
+
+        .title-badge {
+            background: rgba(6, 182, 212, 0.15);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            display: inline-block;
+            margin-bottom: 6px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .header p {
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #1e293b;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            border: 1px solid var(--bg-card-border);
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: var(--accent-green);
+            box-shadow: 0 0 10px var(--accent-green);
+        }
+
+        .dot.fault {
+            background-color: var(--accent-rose);
+            box-shadow: 0 0 12px var(--accent-rose);
+            animation: pulse 1s infinite alternate;
+        }
+
+        @keyframes pulse {
+            from { opacity: 0.4; }
+            to { opacity: 1; }
+        }
+
+        /* Grid Layout */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--bg-card-border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+        }
+
+        /* LCD Screen Simulation */
+        .lcd-case {
+            background: #0d1a10;
+            border: 4px solid #1a3320;
+            border-radius: 8px;
+            padding: 16px;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8), 0 8px 24px rgba(0,0,0,0.4);
+            position: relative;
+        }
+
+        .lcd-case.naive {
+            background: #16201a;
+            border-color: #27382d;
+        }
+
+        .lcd-screen {
+            background-color: var(--lcd-bg);
+            border: 2px solid var(--lcd-border);
+            border-radius: 4px;
+            padding: 12px 14px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 18px;
+            font-weight: bold;
+            line-height: 1.45;
+            color: var(--lcd-text);
+            letter-spacing: 2px;
+            text-shadow: 0 0 6px rgba(57, 255, 20, 0.6);
+            white-space: pre;
+            position: relative;
+            user-select: none;
+            overflow: hidden;
+            min-height: 126px;
+        }
+
+        .lcd-screen.naive-flicker {
+            background-color: #050b07;
+            color: transparent;
+            text-shadow: none;
+        }
+
+        .lcd-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .badge-optimal {
+            background: rgba(16, 185, 129, 0.2);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.4);
+        }
+
+        .badge-naive {
+            background: rgba(244, 63, 94, 0.2);
+            color: #fb7185;
+            border: 1px solid rgba(244, 63, 94, 0.4);
+        }
+
+        /* Dirty Map Heatmap */
+        .heatmap-grid {
+            display: grid;
+            grid-template-columns: repeat(20, 1fr);
+            gap: 3px;
+            background: #0f172a;
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid #1e293b;
+            margin-top: 10px;
+        }
+
+        .heat-cell {
+            aspect-ratio: 1;
+            background: #1e293b;
+            border-radius: 2px;
+            transition: background 0.15s ease;
+        }
+
+        .heat-cell.dirty {
+            background: var(--accent-cyan);
+            box-shadow: 0 0 6px var(--accent-cyan);
+        }
+
+        /* Metrics Grid */
+        .metrics-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .metric-box {
+            background: var(--bg-card);
+            border: 1px solid var(--bg-card-border);
+            border-radius: 10px;
+            padding: 16px;
+        }
+
+        .metric-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        .metric-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .metric-sub {
+            font-size: 11px;
+            color: var(--accent-cyan);
+            margin-top: 4px;
+        }
+
+        /* Carousel Navigation Bar */
+        .carousel-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #0f172a;
+            border: 1px solid var(--bg-card-border);
+            border-radius: 8px;
+            padding: 10px 16px;
+            margin-bottom: 20px;
+        }
+
+        .tab-pill {
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            background: #1e293b;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab-pill.active {
+            background: var(--accent-cyan);
+            color: #042f2e;
+            font-weight: 700;
+        }
+
+        .progress-track {
+            flex: 1;
+            height: 6px;
+            background: #1e293b;
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 0 12px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--accent-cyan);
+            width: 40%;
+            transition: width 0.1s linear;
+        }
+
+        /* Control Panel */
+        .control-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+
+        button {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.15s;
+        }
+
+        .btn-primary {
+            background: #0284c7;
+            color: #ffffff;
+        }
+
+        .btn-primary:hover {
+            background: #0369a1;
+        }
+
+        .btn-danger {
+            background: #e11d48;
+            color: #ffffff;
+        }
+
+        .btn-danger:hover {
+            background: #be123c;
+        }
+
+        .btn-success {
+            background: #059669;
+            color: #ffffff;
+        }
+
+        .btn-success:hover {
+            background: #047857;
+        }
+
+        .slider-group {
+            margin-top: 14px;
+        }
+
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: #1e293b;
+            border-radius: 3px;
+            outline: none;
+        }
+
+        .alarm-banner {
+            display: none;
+            background: rgba(225, 29, 72, 0.2);
+            border: 1px solid #e11d48;
+            border-radius: 8px;
+            padding: 12px 18px;
+            margin-bottom: 20px;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .alarm-banner.active {
+            display: flex;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div>
+            <div class="title-badge">HD44780 & CHARACTER LCD DIFFERENTIAL ENGINE</div>
+            <h1>Flicker-Free LCD Display Engine Console</h1>
+            <p>Differential Shadow-Buffer Scanning &bull; Non-Blocking Cyclical Page Rotation &bull; Instant Fault Preemption</p>
+        </div>
+        <div class="status-pill">
+            <div class="dot" id="fsm-dot"></div>
+            <span id="fsm-label">NORMAL_ROTATION</span>
+        </div>
+    </div>
+
+    <!-- Active Alarm Banner -->
+    <div class="alarm-banner" id="alarm-banner">
+        <div>
+            <strong style="color: #f43f5e; font-size: 13px;">CRITICAL FAULT ACTIVE: DISPLAY OVERRIDE ENGAGED</strong>
+            <p id="alarm-desc" style="font-size: 12px; color: #fda4af; margin-top: 2px;">0x11 OVER-VOLTAGE TRIP - AUTO ROTATION SUSPENDED</p>
+        </div>
+        <button class="btn-success" onclick="clearFault()">CLEAR FAULT & RESTORE</button>
+    </div>
+
+    <!-- Carousel Page Indicator -->
+    <div class="carousel-bar">
+        <div class="tab-pill" id="tab-0" onclick="selectPage(0)">Page 1: Battery</div>
+        <div class="tab-pill" id="tab-1" onclick="selectPage(1)">Page 2: System Health</div>
+        <div class="tab-pill" id="tab-2" onclick="selectPage(2)">Page 3: RF Telemetry</div>
+        <div class="progress-track">
+            <div class="progress-fill" id="dwell-progress"></div>
+        </div>
+        <span style="font-size: 11px; color: var(--text-secondary);" id="dwell-time-label">4.0s</span>
+    </div>
+
+    <!-- Metrics Row -->
+    <div class="metrics-row">
+        <div class="metric-box">
+            <div class="metric-title">Bus Bandwidth Reduction</div>
+            <div class="metric-value" style="color: var(--accent-cyan);" id="metric-savings">94.4%</div>
+            <div class="metric-sub" id="metric-saved-bytes">313 KB Saved vs Naive</div>
+        </div>
+        <div class="metric-box">
+            <div class="metric-title">Screen Clears Avoided</div>
+            <div class="metric-value" style="color: var(--accent-green);" id="metric-clears">1,420</div>
+            <div class="metric-sub">100% Elimination of Flicker</div>
+        </div>
+        <div class="metric-box">
+            <div class="metric-title">Mean Dirty Cells / Frame</div>
+            <div class="metric-value" id="metric-dirty">3.2 / 80</div>
+            <div class="metric-sub">Only 4% of display updated</div>
+        </div>
+        <div class="metric-box">
+            <div class="metric-title">Refresh Rate & Frame Delay</div>
+            <div class="metric-value" id="metric-fps">10.0 Hz</div>
+            <div class="metric-sub">100ms interval (Safe for STN)</div>
+        </div>
+    </div>
+
+    <!-- Dual Display Comparison & Heatmap -->
+    <div class="dashboard-grid">
+        <!-- Flicker Free LCD -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Flicker-Free Engine (Differential Scan)</span>
+                <span class="lcd-badge badge-optimal">ZERO FLICKER (OPTIMAL)</span>
+            </div>
+            <div class="lcd-case">
+                <div class="lcd-screen" id="optimal-lcd">Loading LCD buffer...</div>
+            </div>
+
+            <!-- Heatmap -->
+            <div style="margin-top: 16px;">
+                <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">
+                    <span>DIRTY CELL MAP (CYAN = UPDATED IN THIS FRAME)</span>
+                    <span id="dirty-count-label">0 / 80 Dirty Cells</span>
+                </div>
+                <div class="heatmap-grid" id="heatmap">
+                    <!-- 80 cells dynamically generated -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Naive LCD Renderer -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Naive Renderer (Full Screen Clear)</span>
+                <span class="lcd-badge badge-naive">VISIBLE FLICKER (NAIVE)</span>
+            </div>
+            <div class="lcd-case naive">
+                <div class="lcd-screen" id="naive-lcd">Loading naive buffer...</div>
+            </div>
+
+            <div style="margin-top: 16px; background: rgba(244, 63, 94, 0.08); border: 1px solid rgba(244, 63, 94, 0.2); padding: 12px; border-radius: 6px;">
+                <strong style="color: #fb7185; font-size: 12px;">WHY THE NAIVE RENDERER FLICKERS:</strong>
+                <p style="font-size: 11px; color: #cbd5e1; margin-top: 4px; line-height: 1.4;">
+                    Standard Arduino/embedded tutorials call <code>lcd.clear()</code> before printing new text. 
+                    The HD44780 clear command blanks all DDRAM for <strong>1.52 ms</strong>, followed by a slow <strong>32.0 ms</strong> 
+                    sequential rewrite over I2C. The human eye detects this periodic 100% luminance drop as annoying visible strobe flash.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Control Console -->
+    <div class="card control-grid">
+        <div>
+            <span class="card-title">Interactive Fault Injection & Verification Controls</span>
+            <div class="btn-group">
+                <button class="btn-danger" onclick="triggerFault(0x11, 'OVER-VOLTAGE', '59.40V', 'MAX:58.40V', 'DISCONN CHG')">Trip Over-Voltage</button>
+                <button class="btn-danger" onclick="triggerFault(0x31, 'OVER-TEMP', '74.2C', 'MAX:65.0C', 'COOL SYS')">Trip Over-Temperature</button>
+                <button class="btn-danger" onclick="triggerFault(0x22, 'SHORT-CIRCUIT', '140A', 'MAX:50A', 'OPEN CONTACT')">Trip Short-Circuit</button>
+                <button class="btn-danger" onclick="triggerFault(0x51, 'WATCHDOG', 'TIMEOUT', 'HB 500MS', 'REBOOT MCU')">Trip Watchdog</button>
+                <button class="btn-success" onclick="clearFault()">Clear / Reset Fault</button>
+            </div>
+
+            <div class="btn-group" style="margin-top: 14px;">
+                <button class="btn-primary" onclick="prevPage()">&larr; Prev Page</button>
+                <button class="btn-primary" onclick="nextPage()">Next Page &rarr;</button>
+                <button class="btn-primary" onclick="togglePause()" id="pause-btn">Pause Rotation</button>
+            </div>
+        </div>
+
+        <div>
+            <span class="card-title">Refresh Interval Configuration</span>
+            <div class="slider-group">
+                <div class="slider-label">
+                    <span>Display Refresh Rate:</span>
+                    <strong id="slider-val" style="color: var(--accent-cyan);">100ms (10 Hz)</strong>
+                </div>
+                <input type="range" id="refresh-slider" min="50" max="500" step="25" value="100" oninput="updateRefresh(this.value)">
+                <div style="font-size: 10px; color: var(--text-secondary); margin-top: 6px;">
+                    &bull; 50ms (20 Hz): Liquid crystal response limits &bull; 100ms (10 Hz): Optimal balance &bull; 200ms (5 Hz): Low power
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Heatmap 20x4 grid
+        const heatmapEl = document.getElementById('heatmap');
+        for (let i = 0; i < 80; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'heat-cell';
+            cell.id = `heat-${i}`;
+            heatmapEl.appendChild(cell);
+        }
+
+        let isNaiveBlank = false;
+
+        async function fetchTelemetry() {
+            try {
+                const res = await fetch('/api/state');
+                const data = await res.json();
+                updateDashboard(data);
+            } catch (err) {
+                console.error('Fetch error:', err);
+            }
+        }
+
+        function updateDashboard(data) {
+            // FSM Pill
+            const fsmLabel = document.getElementById('fsm-label');
+            const fsmDot = document.getElementById('fsm-dot');
+            fsmLabel.innerText = data.state;
+            if (data.fault.active) {
+                fsmDot.className = 'dot fault';
+                document.getElementById('alarm-banner').className = 'alarm-banner active';
+                document.getElementById('alarm-desc').innerText = `0x${data.fault.code.toString(16).toUpperCase()} ${data.fault.title} - CRITICAL PREEMPTION ACTIVE`;
+            } else {
+                fsmDot.className = 'dot';
+                document.getElementById('alarm-banner').className = 'alarm-banner';
+            }
+
+            // Tab Navigation
+            for (let i = 0; i < 3; i++) {
+                const tab = document.getElementById(`tab-${i}`);
+                if (data.activePage === i && !data.fault.active) {
+                    tab.className = 'tab-pill active';
+                } else {
+                    tab.className = 'tab-pill';
+                }
+            }
+
+            // Dwell Progress
+            const dwellPct = ((4000 - data.dwellRemainingMs) / 4000) * 100;
+            document.getElementById('dwell-progress').style.width = `${Math.min(100, Math.max(0, dwellPct))}%`;
+            document.getElementById('dwell-time-label').innerText = `${(data.dwellRemainingMs / 1000).toFixed(1)}s`;
+
+            // Optimal LCD
+            const optLines = data.frontBuffer.map(row => row.join('')).join('\n');
+            document.getElementById('optimal-lcd').innerText = optLines;
+
+            // Naive LCD with simulated blink
+            const naiveEl = document.getElementById('naive-lcd');
+            isNaiveBlank = !isNaiveBlank && (data.stats.lastDirtyCount > 0);
+            if (isNaiveBlank) {
+                naiveEl.className = 'lcd-screen naive-flicker';
+                naiveEl.innerText = '';
+            } else {
+                naiveEl.className = 'lcd-screen';
+                naiveEl.innerText = data.naiveBuffer.map(row => row.join('')).join('\n');
+            }
+
+            // Heatmap
+            let dirtyTotal = 0;
+            for (let r = 0; r < 4; r++) {
+                for (let c = 0; c < 20; c++) {
+                    const idx = r * 20 + c;
+                    const cell = document.getElementById(`heat-${idx}`);
+                    const isDirty = data.dirtyMap[r][c];
+                    if (isDirty) {
+                        cell.className = 'heat-cell dirty';
+                        dirtyTotal++;
+                    } else {
+                        cell.className = 'heat-cell';
+                    }
+                }
+            }
+            document.getElementById('dirty-count-label').innerText = `${dirtyTotal} / 80 Dirty Cells`;
+
+            // Metrics
+            document.getElementById('metric-savings').innerText = `${data.stats.savingsPct}%`;
+            document.getElementById('metric-saved-bytes').innerText = `${(data.stats.busBytesSaved / 1024).toFixed(1)} KB Saved`;
+            document.getElementById('metric-clears').innerText = data.stats.clearsAvoided.toLocaleString();
+            document.getElementById('metric-dirty').innerText = `${(data.stats.charsWritten / Math.max(1, data.stats.framesRendered)).toFixed(1)} / 80`;
+            const fps = (1000 / data.refreshIntervalMs).toFixed(1);
+            document.getElementById('metric-fps').innerText = `${fps} Hz`;
+
+            // Pause button text
+            document.getElementById('pause-btn').innerText = (data.state === 'PAGE_PAUSED') ? 'Resume Rotation' : 'Pause Rotation';
+        }
+
+        async function triggerFault(code, title, val, lim, act) {
+            await fetch('/api/control', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'TRIGGER_FAULT', code, title, val, lim, act })
+            });
+            fetchTelemetry();
+        }
+
+        async function clearFault() {
+            await fetch('/api/control', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'CLEAR_FAULT' })
+            });
+            fetchTelemetry();
+        }
+
+        async function nextPage() {
+            await fetch('/api/control', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'NEXT_PAGE' })
+            });
+            fetchTelemetry();
+        }
+
+        async function prevPage() {
+            await fetch('/api/control', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'PREV_PAGE' })
+            });
+            fetchTelemetry();
+        }
+
+        async function selectPage(page) {
+            await fetch('/api/control', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'NEXT_PAGE' }) // cycles
+            });
+            fetchTelemetry();
+        }
+
+        async function togglePause() {
+            await fetch('/api/control', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'PAUSE_ROTATION' })
+            });
+            fetchTelemetry();
+        }
+
+        async function updateRefresh(val) {
+            document.getElementById('slider-val').innerText = `${val}ms (${(1000/val).toFixed(1)} Hz)`;
+            await fetch('/api/control', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'SET_REFRESH', interval: parseInt(val) })
+            });
+        }
+
+        // 100ms polling loop
+        setInterval(fetchTelemetry, 100);
+        fetchTelemetry();
+    </script>
+</body>
+</html>

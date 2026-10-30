@@ -1,0 +1,269 @@
+{
+  "testDate": "2026-10-30T09:06:54.788Z",
+  "standard": "ISO 26262 ASIL-C / MISRA-C:2012 / IEC 61508 SIL-2",
+  "scenarios": [
+    {
+      "name": "Scenario 1: Nominal Baseline",
+      "totalAssertions": 7,
+      "passedAssertions": 7,
+      "assertions": [
+        {
+          "name": "Initial FSM State is NORMAL",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Contactor auxiliary feedback is closed",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Initial cell imbalance delta is 0mV",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "State of Health is >= 98%",
+          "passed": true,
+          "details": "SOH: 98.8%"
+        },
+        {
+          "name": "Composite Risk Score in LOW tier (<25%)",
+          "passed": true,
+          "details": "CRS: 0%"
+        },
+        {
+          "name": "Blynk V18 mirrors NORMAL state (0)",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Blynk V23 mirrors Composite Risk Score",
+          "passed": true,
+          "details": ""
+        }
+      ]
+    },
+    {
+      "name": "Scenario 2: Cell Imbalance & DEGRADED Transition",
+      "totalAssertions": 6,
+      "passedAssertions": 6,
+      "assertions": [
+        {
+          "name": "State transitioned to DEGRADED",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Main contactor remains closed in DEGRADED",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Imbalance factor score scaled >= 50%",
+          "passed": true,
+          "details": "Imb Score: 63%"
+        },
+        {
+          "name": "Composite Risk Score escalated to MODERATE",
+          "passed": true,
+          "details": "CRS: 29%"
+        },
+        {
+          "name": "Operator Recommendation generated for Cell Balancing",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "State Transition logged accurately",
+          "passed": true,
+          "details": ""
+        }
+      ]
+    },
+    {
+      "name": "Scenario 3: Critical Overvoltage & FAILSAFE Trip",
+      "totalAssertions": 5,
+      "passedAssertions": 5,
+      "assertions": [
+        {
+          "name": "State transitioned immediately to FAILSAFE",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "HV contactor opened immediately for isolation",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Composite Risk Score jumped into CRITICAL tier (>=76%)",
+          "passed": true,
+          "details": "CRS: 76%"
+        },
+        {
+          "name": "Blynk V21 reflects OPEN contactor (0)",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Primary Directive alerts operator of HV isolation",
+          "passed": true,
+          "details": ""
+        }
+      ]
+    },
+    {
+      "name": "Scenario 4: 5-Stage Structured Recovery",
+      "totalAssertions": 8,
+      "passedAssertions": 8,
+      "assertions": [
+        {
+          "name": "Recovery start accepted in FAILSAFE",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Stage 1: CLEARANCE_CHECK initialized",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Stage 2: STABILIZATION entered after clearance",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Stage 3: SUBSYSTEM_VERIFY entered after dwell",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Stage 4: PROVISIONAL_DEGRADE stepped up state to DEGRADED",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Contactor re-engaged under provisional derating",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Stage 5: NORMAL_RESTORE completed, FSM in NORMAL",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Recovery stage returned to IDLE",
+          "passed": true,
+          "details": ""
+        }
+      ]
+    },
+    {
+      "name": "Scenario 5: Contactor Lockout & Recovery Exhaustion",
+      "totalAssertions": 4,
+      "passedAssertions": 4,
+      "assertions": [
+        {
+          "name": "Recovery retries exhausted escalated FSM to SHUTDOWN",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Contactors locked open in SHUTDOWN",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Composite Risk Score locked at 100%",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Service Reset successfully clears SHUTDOWN lockout",
+          "passed": true,
+          "details": ""
+        }
+      ]
+    },
+    {
+      "name": "Scenario 6: Thermal Gradient & Action Recommendation",
+      "totalAssertions": 3,
+      "passedAssertions": 3,
+      "assertions": [
+        {
+          "name": "Thermal stress score elevated (>=60%)",
+          "passed": true,
+          "details": "Thermal Score: 90%"
+        },
+        {
+          "name": "Operator Recommendation generated for THERMAL_REGULATION",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Recommendation advises coolant and fan inspection",
+          "passed": true,
+          "details": ""
+        }
+      ]
+    },
+    {
+      "name": "Scenario 7: Deep Discharge & Low-SoC Mitigation",
+      "totalAssertions": 3,
+      "passedAssertions": 3,
+      "assertions": [
+        {
+          "name": "SoC estimated below 15%",
+          "passed": true,
+          "details": "SoC: 4.5%"
+        },
+        {
+          "name": "SoC stress score elevated (>=70%)",
+          "passed": true,
+          "details": "SoC Stress: 95%"
+        },
+        {
+          "name": "Deep Discharge Advisory emitted",
+          "passed": true,
+          "details": ""
+        }
+      ]
+    },
+    {
+      "name": "Scenario 8: 10,000-Tick Stochastic Stress Benchmark",
+      "totalAssertions": 3,
+      "passedAssertions": 3,
+      "assertions": [
+        {
+          "name": "Zero NaN Composite Risk Scores observed across 10,000 ticks",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "Zero Contactor closure violations while in FAILSAFE",
+          "passed": true,
+          "details": ""
+        },
+        {
+          "name": "10,000 ticks executed within budget (<1000ms)",
+          "passed": true,
+          "details": "Duration: 34ms"
+        }
+      ]
+    }
+  ],
+  "benchmark": {
+    "totalTicks": 10000,
+    "executionTimeMs": 34,
+    "avgTickUs": 3.4,
+    "nanRiskScores": 0,
+    "contactorViolationsInFailsafe": 0
+  },
+  "summary": {
+    "totalTests": 39,
+    "passedTests": 39,
+    "passRatePct": 100
+  }
+}

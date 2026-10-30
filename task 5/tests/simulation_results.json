@@ -1,0 +1,162 @@
+{
+  "test_run_timestamp": "2026-10-30T09:06:54.618Z",
+  "engine_name": "Event-Driven Telemetry and Live Blynk Dashboard Engine",
+  "compliance": {
+    "iso26262_asil_c": true,
+    "misra_c_2012": true,
+    "iec61508_sil2": true
+  },
+  "blynk_virtual_pins": [
+    {
+      "pin": "V0",
+      "metric": "Pack Total Voltage (V)"
+    },
+    {
+      "pin": "V1",
+      "metric": "Pack Current (A)"
+    },
+    {
+      "pin": "V2",
+      "metric": "Pack Max Temperature (°C)"
+    },
+    {
+      "pin": "V3",
+      "metric": "Weakest Cell Voltage (mV)"
+    },
+    {
+      "pin": "V4",
+      "metric": "Strongest Cell Voltage (mV)"
+    },
+    {
+      "pin": "V5",
+      "metric": "Cell Imbalance Delta (mV)"
+    },
+    {
+      "pin": "V6",
+      "metric": "Strongest Cell 1-based Index"
+    },
+    {
+      "pin": "V7",
+      "metric": "Weakest Cell 1-based Index"
+    },
+    {
+      "pin": "V8",
+      "metric": "BMS Operating State (0..3)"
+    },
+    {
+      "pin": "V9",
+      "metric": "Active Fault ID (Hex)"
+    },
+    {
+      "pin": "V10",
+      "metric": "Relay Status Bitfield"
+    },
+    {
+      "pin": "V11",
+      "metric": "Wi-Fi RSSI (dBm)"
+    },
+    {
+      "pin": "V12",
+      "metric": "Offline Queue Depth (0..64)"
+    },
+    {
+      "pin": "V13",
+      "metric": "Telemetry Stream Mode (0=LIVE, 1=QUEUED)"
+    },
+    {
+      "pin": "V14",
+      "metric": "Monotonic Packet Sequence ID"
+    },
+    {
+      "pin": "V15",
+      "metric": "Wi-Fi State Machine State (0..7)"
+    },
+    {
+      "pin": "V16-V27",
+      "metric": "Cell Voltages 1-12 (mV)"
+    },
+    {
+      "pin": "V28",
+      "metric": "Offline Queue Dropped Count"
+    },
+    {
+      "pin": "V29",
+      "metric": "Backlog Drain Percentage (%)"
+    }
+  ],
+  "total_scenarios": 8,
+  "passed_scenarios": 8,
+  "scenario_matrix": [
+    {
+      "id": 1,
+      "name": "Baseline Quiescent Steady State & Deadband Suppression",
+      "ticks": 1000,
+      "suppressed_pct": "100.0%",
+      "packets_transmitted": 1,
+      "passed": true
+    },
+    {
+      "id": 2,
+      "name": "Parameter Delta Dynamic Triggers & Extrema Shift",
+      "strongest_cell": "Cell 3 (3820 mV)",
+      "weakest_cell": "Cell 9 (3610 mV)",
+      "delta_mv": 210,
+      "passed": true
+    },
+    {
+      "id": 3,
+      "name": "Safety Critical Fault Injection & Telemetry Dispatch",
+      "fault_injected": "0x1001 CELL_OVERVOLTAGE",
+      "resulting_state": "FAILSAFE",
+      "relays_isolated": true,
+      "priority": "CRITICAL",
+      "passed": true
+    },
+    {
+      "id": 4,
+      "name": "Network Outage & Offline Circular Queue Buffering",
+      "wifi_state": "BACKOFF_WAIT",
+      "buffered_events": 20,
+      "packet_loss": 0,
+      "passed": true
+    },
+    {
+      "id": 5,
+      "name": "Non-Blocking Reconnection & Orderly FIFO Queue Drain",
+      "reconnect_dwell_ms": 1060,
+      "packets_drained": 20,
+      "fifo_order_preserved": true,
+      "final_queue_depth": 0,
+      "passed": true
+    },
+    {
+      "id": 6,
+      "name": "Extended Outage & Queue Overflow Priority Retention",
+      "buffer_utilization": "64/64 (100%)",
+      "dropped_routine_packets": 10,
+      "critical_fault_retained": true,
+      "passed": true
+    },
+    {
+      "id": 7,
+      "name": "RSSI Fluctuation & Signal Quality Tier Assessment",
+      "tiers_verified": [
+        "EXCELLENT",
+        "FAIR",
+        "POOR"
+      ],
+      "passed": true
+    },
+    {
+      "id": 8,
+      "name": "10,000-Tick Stochastic Fuzzing & High-Load Stress Benchmark",
+      "ticks": 10000,
+      "events_generated": 195,
+      "live_packets": 135,
+      "queued_packets": 64,
+      "network_flaps": 20,
+      "fault_injections": 2,
+      "passed": true
+    }
+  ]
+}

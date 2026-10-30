@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Non-Blocking Safety Relay & Protection System</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #0a0e17;
+            --bg-panel: rgba(18, 26, 43, 0.75);
+            --bg-card: rgba(26, 38, 64, 0.55);
+            --border-panel: rgba(70, 110, 180, 0.25);
+            --border-glow: rgba(0, 230, 255, 0.4);
+            --accent-cyan: #00f0ff;
+            --accent-emerald: #00ffaa;
+            --accent-amber: #ffb703;
+            --accent-ruby: #ff3366;
+            --accent-violet: #a855f7;
+            --text-main: #e2e8f0;
+            --text-muted: #8492a6;
+            --text-dim: #4b5563;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', -apple-system, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 24px;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(0, 240, 255, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(168, 85, 247, 0.05) 0%, transparent 40%);
+        }
+
+        /* HEADER */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-panel);
+            padding-bottom: 20px;
+            margin-bottom: 24px;
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .system-badge {
+            background: linear-gradient(135deg, rgba(0, 240, 255, 0.2), rgba(168, 85, 247, 0.2));
+            border: 1px solid var(--accent-cyan);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--accent-cyan);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        h1 {
+            font-size: 1.6rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #ffffff 40%, #94a3b8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-status {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .live-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--accent-emerald);
+        }
+
+        .pulse-dot {
+            width: 10px;
+            height: 10px;
+            background-color: var(--accent-emerald);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--accent-emerald);
+            animation: pulse 1.8s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.3); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+
+        /* MAIN GRID */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 340px 1fr 340px;
+            gap: 20px;
+        }
+
+        /* CARDS & PANELS */
+        .panel {
+            background: var(--bg-panel);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-panel);
+            border-radius: 14px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            padding-bottom: 10px;
+        }
+
+        .panel-title {
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* CONTACTOR WIDGET */
+        .contactor-widget {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 16px;
+            border-radius: 10px;
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            text-align: center;
+        }
+
+        .contactor-graphic {
+            width: 120px;
+            height: 80px;
+            position: relative;
+            margin: 12px 0;
+        }
+
+        .contact-terminal {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #475569;
+            position: absolute;
+            top: 30px;
+            border: 2px solid #64748b;
+        }
+
+        .terminal-left { left: 10px; }
+        .terminal-right { right: 10px; }
+
+        .contact-blade {
+            width: 60px;
+            height: 6px;
+            background: #94a3b8;
+            position: absolute;
+            top: 37px;
+            left: 20px;
+            transform-origin: left center;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 3px;
+        }
+
+        .contactor-closed .contact-blade {
+            background: var(--accent-emerald);
+            transform: rotate(0deg);
+            box-shadow: 0 0 12px var(--accent-emerald);
+        }
+
+        .contactor-closed .contact-terminal {
+            background: var(--accent-emerald);
+            box-shadow: 0 0 10px var(--accent-emerald);
+        }
+
+        .contactor-open .contact-blade {
+            background: var(--accent-ruby);
+            transform: rotate(-35deg);
+            box-shadow: 0 0 12px var(--accent-ruby);
+        }
+
+        .contactor-open .contact-terminal {
+            background: var(--accent-ruby);
+            box-shadow: 0 0 8px var(--accent-ruby);
+        }
+
+        .contactor-state-text {
+            font-size: 1.25rem;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: 1px;
+        }
+
+        .contactor-closed .contactor-state-text { color: var(--accent-emerald); }
+        .contactor-open .contactor-state-text { color: var(--accent-ruby); }
+
+        /* FSM STATE LIST */
+        .fsm-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .fsm-node {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            border-radius: 8px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            transition: all 0.2s ease;
+        }
+
+        .fsm-node.active {
+            background: rgba(0, 240, 255, 0.12);
+            border: 1px solid var(--accent-cyan);
+            color: #ffffff;
+            box-shadow: 0 0 16px rgba(0, 240, 255, 0.25);
+            transform: translateX(4px);
+        }
+
+        .fsm-node.active-danger {
+            background: rgba(255, 51, 102, 0.15);
+            border: 1px solid var(--accent-ruby);
+            color: #ffffff;
+            box-shadow: 0 0 16px rgba(255, 51, 102, 0.3);
+            transform: translateX(4px);
+        }
+
+        .fsm-badge {
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        /* METRIC CARDS */
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .metric-card {
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 12px;
+        }
+
+        .metric-label {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .metric-value {
+            font-size: 1.4rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            margin-top: 4px;
+            color: #ffffff;
+        }
+
+        .metric-unit {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        /* SCOPE CANVAS */
+        .scope-container {
+            background: #070a11;
+            border: 1px solid var(--border-panel);
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #scopeCanvas {
+            width: 100%;
+            height: 320px;
+            display: block;
+        }
+
+        .scope-overlay {
+            position: absolute;
+            top: 10px;
+            left: 14px;
+            display: flex;
+            gap: 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+        }
+
+        .trace-tag {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .tag-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        /* ANOMALY INDICATORS */
+        .anomaly-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .anomaly-pill {
+            padding: 8px 10px;
+            border-radius: 6px;
+            font-size: 0.72rem;
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .anomaly-pill.triggered {
+            background: rgba(255, 51, 102, 0.15);
+            border-color: var(--accent-ruby);
+            color: var(--accent-ruby);
+            font-weight: 700;
+            box-shadow: 0 0 10px rgba(255, 51, 102, 0.2);
+        }
+
+        .anomaly-pill.warning {
+            background: rgba(255, 183, 3, 0.15);
+            border-color: var(--accent-amber);
+            color: var(--accent-amber);
+            font-weight: 700;
+        }
+
+        .anomaly-pill.success {
+            background: rgba(0, 255, 170, 0.12);
+            border-color: var(--accent-emerald);
+            color: var(--accent-emerald);
+        }
+
+        /* CONTROLS & INJECTORS */
+        .injector-buttons {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
+        }
+
+        button.btn-inject {
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--text-main);
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        button.btn-inject:hover {
+            background: rgba(51, 65, 85, 0.9);
+            border-color: var(--accent-cyan);
+            transform: translateY(-1px);
+        }
+
+        button.btn-inject.danger:hover {
+            border-color: var(--accent-ruby);
+            background: rgba(255, 51, 102, 0.15);
+        }
+
+        button.btn-reset {
+            background: linear-gradient(135deg, #0284c7, #0369a1);
+            color: #ffffff;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
+        }
+
+        /* SLIDERS */
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--accent-cyan);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 8px var(--accent-cyan);
+        }
+
+        /* TRANSITION TABLE */
+        .table-container {
+            max-height: 200px;
+            overflow-y: auto;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.72rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        th {
+            background: rgba(15, 23, 42, 0.85);
+            padding: 8px 10px;
+            text-align: left;
+            color: var(--text-muted);
+            font-weight: 600;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            position: sticky;
+            top: 0;
+        }
+
+        td {
+            padding: 8px 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            color: #cbd5e1;
+        }
+
+        tr:nth-child(even) {
+            background: rgba(255, 255, 255, 0.015);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-title">
+            <span class="system-badge">IEC 60255 / IEC 61508 SIL-3</span>
+            <h1>Non-Blocking Protection Relay & Safety System</h1>
+        </div>
+        <div class="header-status">
+            <div class="live-indicator">
+                <div class="pulse-dot"></div>
+                <span>TICK LOOP ACTIVE (10ms)</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="dashboard-grid">
+        
+        <!-- LEFT COLUMN: FSM & CONTACTOR -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">Physical Actuator</span>
+                <span class="fsm-badge" id="dwellTimeBadge">0 ms</span>
+            </div>
+
+            <div class="contactor-widget contactor-closed" id="contactorWidget">
+                <div class="metric-label">Relay Contactor Status</div>
+                <div class="contactor-graphic">
+                    <div class="contact-terminal terminal-left"></div>
+                    <div class="contact-blade"></div>
+                    <div class="contact-terminal terminal-right"></div>
+                </div>
+                <div class="contactor-state-text" id="contactorStatusText">CLOSED (ACTIVE)</div>
+            </div>
+
+            <div class="panel-header" style="margin-top: 8px;">
+                <span class="panel-title">Safety State Machine</span>
+            </div>
+
+            <div class="fsm-list">
+                <div class="fsm-node active" id="node-NORMAL_MONITORING">
+                    <span>1. NORMAL_MONITORING</span>
+                    <span class="fsm-badge">Armed</span>
+                </div>
+                <div class="fsm-node" id="node-TRIP_DEBOUNCING">
+                    <span>2. TRIP_DEBOUNCING</span>
+                    <span class="fsm-badge" id="tripDebounceText">0 / 120ms</span>
+                </div>
+                <div class="fsm-node" id="node-TRIPPED_FAULT">
+                    <span>3. TRIPPED_FAULT</span>
+                    <span class="fsm-badge">Isolated</span>
+                </div>
+                <div class="fsm-node" id="node-RECOVERY_COOLDOWN">
+                    <span>4. RECOVERY_COOLDOWN</span>
+                    <span class="fsm-badge">3000ms</span>
+                </div>
+                <div class="fsm-node" id="node-RECOVERY_SOAK">
+                    <span>5. RECOVERY_SOAK</span>
+                    <span class="fsm-badge">2000ms</span>
+                </div>
+                <div class="fsm-node" id="node-RECOVERY_REARMING">
+                    <span>6. RECOVERY_REARMING</span>
+                    <span class="fsm-badge">500ms</span>
+                </div>
+                <div class="fsm-node" id="node-LOCKOUT_LATCHED">
+                    <span>7. LOCKOUT_LATCHED</span>
+                    <span class="fsm-badge">Manual</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- CENTER COLUMN: LIVE OSCILLOSCOPE & STATS -->
+        <div class="panel" style="gap: 20px;">
+            <div class="panel-header">
+                <span class="panel-title">Live Dual-Trace Oscilloscope (Anti-Chatter & Window Analysis)</span>
+                <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--accent-cyan);" id="signalClassBadge">CLASS: STEADY_NORMAL</span>
+            </div>
+
+            <div class="scope-container">
+                <div class="scope-overlay">
+                    <div class="trace-tag">
+                        <div class="tag-dot" style="background: var(--accent-cyan);"></div>
+                        <span>Current (Trip 50A / Reset 42A)</span>
+                    </div>
+                    <div class="trace-tag">
+                        <div class="tag-dot" style="background: var(--accent-violet);"></div>
+                        <span>Filtered Signal (Median)</span>
+                    </div>
+                    <div class="trace-tag">
+                        <div class="tag-dot" style="background: var(--accent-amber);"></div>
+                        <span>Slew Rate |dI/dt|</span>
+                    </div>
+                </div>
+                <canvas id="scopeCanvas" width="700" height="320"></canvas>
+            </div>
+
+            <div class="metric-grid">
+                <div class="metric-card">
+                    <div class="metric-label">Load Current</div>
+                    <div class="metric-value"><span id="valCurrent">28.0</span> <span class="metric-unit">A</span></div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Bus Voltage</div>
+                    <div class="metric-value"><span id="valVoltage">230.0</span> <span class="metric-unit">V</span></div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Window Variance &sigma;²</div>
+                    <div class="metric-value"><span id="valVariance">0.012</span> <span class="metric-unit">A²</span></div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Current Slew Rate |dI/dt|</div>
+                    <div class="metric-value"><span id="valSlew">4.2</span> <span class="metric-unit">A/s</span></div>
+                </div>
+            </div>
+
+            <!-- FORENSIC LOG TABLE -->
+            <div class="panel-header" style="margin-top: -6px;">
+                <span class="panel-title">Forensic Transition Audit Trail</span>
+                <span style="font-size: 0.75rem; color: var(--text-muted);" id="totalTransitionsText">Total Transitions: 0</span>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Transition</th>
+                            <th>Reason</th>
+                            <th>Current</th>
+                            <th>Voltage</th>
+                            <th>Flags</th>
+                        </tr>
+                    </thead>
+                    <tbody id="eventTableBody">
+                        <!-- Populated dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN: ANOMALY MATRIX & FAULT INJECTOR -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">Sensor Anomaly Matrix</span>
+            </div>
+
+            <div class="anomaly-grid">
+                <div class="anomaly-pill" id="flag-OVERCURRENT">
+                    <span>Overcurrent</span>
+                    <span id="txtOvercurrent">NORMAL</span>
+                </div>
+                <div class="anomaly-pill" id="flag-HYSTERESIS">
+                    <span>Hysteresis Band</span>
+                    <span id="txtHysteresis">IN-BAND</span>
+                </div>
+                <div class="anomaly-pill" id="flag-FROZEN">
+                    <span>Frozen ADC</span>
+                    <span id="txtFrozen">HEALTHY</span>
+                </div>
+                <div class="anomaly-pill" id="flag-SLEW">
+                    <span>Slew Jump</span>
+                    <span id="txtSlew">NORMAL</span>
+                </div>
+                <div class="anomaly-pill" id="flag-OUT_OF_RANGE">
+                    <span>Out of Range</span>
+                    <span id="txtRange">VALID</span>
+                </div>
+                <div class="anomaly-pill" id="flag-NOISE_REJECTED">
+                    <span>EMI Rejected</span>
+                    <span id="txtNoise">CLEAR</span>
+                </div>
+            </div>
+
+            <div class="panel-header" style="margin-top: 10px;">
+                <span class="panel-title">Dynamic Fault Injector</span>
+            </div>
+
+            <div class="injector-buttons">
+                <button class="btn-inject danger" onclick="injectFault('OVERCURRENT', 25)">
+                    <span>⚡ Overcurrent Surge (58A, 250ms)</span>
+                    <span class="fsm-badge">Trip</span>
+                </button>
+                <button class="btn-inject" onclick="injectFault('TRANSIENT_SPIKE', 4)">
+                    <span>⏱ Transient Spike (52A, 40ms)</span>
+                    <span class="fsm-badge">Glitch</span>
+                </button>
+                <button class="btn-inject danger" onclick="injectFault('FREEZE', 20)">
+                    <span>🧊 Frozen Reading (Stuck ADC)</span>
+                    <span class="fsm-badge">Fault</span>
+                </button>
+                <button class="btn-inject danger" onclick="injectFault('SLEW_JUMP', 2)">
+                    <span>📈 Unrealistic Jump (95A / 10ms)</span>
+                    <span class="fsm-badge">Slew</span>
+                </button>
+                <button class="btn-inject danger" onclick="injectFault('WIRE_BREAK', 2)">
+                    <span>🔌 Wire Break / Broken Sensor (0V)</span>
+                    <span class="fsm-badge">Break</span>
+                </button>
+                <button class="btn-inject" onclick="injectFault('EMI_BURST', 1)">
+                    <span>📡 Single-Tick EMI Burst (68A)</span>
+                    <span class="fsm-badge">Filter</span>
+                </button>
+                <button class="btn-inject" onclick="injectFault('GENUINE_STEP', 10)">
+                    <span>🚀 Induction Motor Step (45A)</span>
+                    <span class="fsm-badge">Step</span>
+                </button>
+            </div>
+
+            <div class="panel-header" style="margin-top: 10px;">
+                <span class="panel-title">Continuous Manual Control</span>
+            </div>
+
+            <div class="slider-group">
+                <div class="slider-label">
+                    <span>Load Current:</span>
+                    <span id="sliderCurVal">28.0 A</span>
+                </div>
+                <input type="range" id="curSlider" min="10" max="65" step="0.5" value="28" oninput="updateSliders()">
+            </div>
+
+            <div class="slider-group">
+                <div class="slider-label">
+                    <span>Bus Voltage:</span>
+                    <span id="sliderVoltVal">230.0 V</span>
+                </div>
+                <input type="range" id="voltSlider" min="160" max="280" step="1" value="230" oninput="updateSliders()">
+            </div>
+
+            <button class="btn-reset" onclick="injectFault('RESET', 1)" style="margin-top: 8px;">
+                Supervisory Manual Reset
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        const canvas = document.getElementById('scopeCanvas');
+        const ctx = canvas.getContext('2d');
+        const historyData = [];
+        const MAX_HISTORY = 120;
+
+        function updateSliders() {
+            const cur = parseFloat(document.getElementById('curSlider').value);
+            const volt = parseFloat(document.getElementById('voltSlider').value);
+            document.getElementById('sliderCurVal').innerText = cur.toFixed(1) + ' A';
+            document.getElementById('sliderVoltVal').innerText = volt.toFixed(1) + ' V';
+            fetch(`/api/inject?type=SET_PARAMS&current=${cur}&voltage=${volt}`);
+        }
+
+        function injectFault(type, duration) {
+            fetch(`/api/inject?type=${type}&duration=${duration}`);
+        }
+
+        async function fetchTelemetry() {
+            try {
+                const res = await fetch('/api/telemetry');
+                if (!res.ok) return;
+                const data = await res.json();
+                renderUI(data);
+            } catch (err) {
+                console.error('Telemetry fetch error:', err);
+            }
+        }
+
+        function renderUI(data) {
+            /* 1. Actuator status */
+            const contactorWidget = document.getElementById('contactorWidget');
+            const contactorStatusText = document.getElementById('contactorStatusText');
+            if (data.contacts === 'CLOSED') {
+                contactorWidget.className = 'contactor-widget contactor-closed';
+                contactorStatusText.innerText = 'CLOSED (ACTIVE)';
+            } else {
+                contactorWidget.className = 'contactor-widget contactor-open';
+                contactorStatusText.innerText = 'OPEN (ISOLATED)';
+            }
+
+            document.getElementById('dwellTimeBadge').innerText = `${data.dwellTime} ms`;
+
+            /* 2. State Highlight */
+            document.querySelectorAll('.fsm-node').forEach(node => {
+                node.className = 'fsm-node';
+            });
+            const activeNode = document.getElementById(`node-${data.state}`);
+            if (activeNode) {
+                if (data.state === 'TRIPPED_FAULT' || data.state === 'LOCKOUT_LATCHED') {
+                    activeNode.className = 'fsm-node active-danger';
+                } else {
+                    activeNode.className = 'fsm-node active';
+                }
+            }
+
+            if (data.state === 'TRIP_DEBOUNCING') {
+                document.getElementById('tripDebounceText').innerText = `${data.tripDebounce} / 120ms`;
+            } else {
+                document.getElementById('tripDebounceText').innerText = '0 / 120ms';
+            }
+
+            /* 3. Metrics */
+            document.getElementById('valCurrent').innerText = data.current.toFixed(1);
+            document.getElementById('valVoltage').innerText = data.voltage.toFixed(1);
+            document.getElementById('valVariance').innerText = data.variance.toFixed(4);
+            document.getElementById('valSlew').innerText = data.slewRate.toFixed(1);
+            document.getElementById('signalClassBadge').innerText = `CLASS: ${data.signalClass}`;
+
+            /* 4. Anomaly Pills */
+            setPill('flag-OVERCURRENT', 'txtOvercurrent', (data.activeFlags & 0x0020) !== 0, 'TRIPPED', 'NORMAL');
+            setPill('flag-HYSTERESIS', 'txtHysteresis', (data.activeFlags & 0x0100) !== 0, 'ACTIVE (42-50A)', 'CLEAR');
+            setPill('flag-FROZEN', 'txtFrozen', (data.activeFlags & 0x0008) !== 0, 'STUCK ADC', 'HEALTHY');
+            setPill('flag-SLEW', 'txtSlew', (data.activeFlags & 0x0004) !== 0, 'ANOMALY', 'NORMAL');
+            setPill('flag-OUT_OF_RANGE', 'txtRange', (data.activeFlags & 0x0003) !== 0, 'OUT OF RANGE', 'VALID');
+            setPill('flag-NOISE_REJECTED', 'txtNoise', (data.activeFlags & 0x0010) !== 0, 'SPIKE FILTERED', 'CLEAR');
+
+            /* 5. Historical Waveform buffer */
+            historyData.push({
+                current: data.current,
+                filtered: data.filteredCurrent,
+                voltage: data.voltage,
+                slew: data.slewRate
+            });
+            if (historyData.length > MAX_HISTORY) {
+                historyData.shift();
+            }
+            drawScope();
+
+            /* 6. Forensic Table */
+            document.getElementById('totalTransitionsText').innerText = `Total Transitions: ${data.recentEvents.length}`;
+            const tbody = document.getElementById('eventTableBody');
+            tbody.innerHTML = '';
+            data.recentEvents.forEach(ev => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${new Date(ev.timestampMs).toLocaleTimeString()}</td>
+                    <td><span style="color:var(--accent-cyan); font-weight:700;">${ev.fromState}</span> &rarr; <span style="color:var(--accent-emerald); font-weight:700;">${ev.toState}</span></td>
+                    <td style="color:var(--accent-amber);">${ev.reason}</td>
+                    <td>${ev.currentA} A</td>
+                    <td>${ev.voltageV} V</td>
+                    <td>0x${ev.anomalyFlags.toString(16).padStart(4, '0')}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function setPill(pillId, textId, condition, trigText, normText) {
+            const pill = document.getElementById(pillId);
+            const txt = document.getElementById(textId);
+            if (condition) {
+                pill.className = 'anomaly-pill triggered';
+                txt.innerText = trigText;
+            } else {
+                pill.className = 'anomaly-pill';
+                txt.innerText = normText;
+            }
+        }
+
+        function drawScope() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            /* Grid background */
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < canvas.width; x += 40) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y < canvas.height; y += 40) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+
+            /* Reference Threshold Lines */
+            /* Scale: Current 0 to 70A mapped to y: 280 to 20 */
+            const yTrip = mapY(50.0, 0, 70);
+            const yReset = mapY(42.0, 0, 70);
+
+            /* Hysteresis band fill */
+            ctx.fillStyle = 'rgba(255, 183, 3, 0.06)';
+            ctx.fillRect(0, yTrip, canvas.width, yReset - yTrip);
+
+            /* Trip line (50A) */
+            ctx.strokeStyle = 'rgba(255, 51, 102, 0.6)';
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.moveTo(0, yTrip);
+            ctx.lineTo(canvas.width, yTrip);
+            ctx.stroke();
+
+            /* Reset line (42A) */
+            ctx.strokeStyle = 'rgba(0, 255, 170, 0.5)';
+            ctx.beginPath();
+            ctx.moveTo(0, yReset);
+            ctx.lineTo(canvas.width, yReset);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            /* Draw Traces */
+            if (historyData.length < 2) return;
+            const stepX = canvas.width / (MAX_HISTORY - 1);
+
+            /* Trace 1: Raw Current (Cyan) */
+            ctx.strokeStyle = '#00f0ff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            historyData.forEach((pt, i) => {
+                const x = i * stepX;
+                const y = mapY(pt.current, 0, 70);
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+
+            /* Trace 2: Filtered Current (Violet) */
+            ctx.strokeStyle = '#a855f7';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            historyData.forEach((pt, i) => {
+                const x = i * stepX;
+                const y = mapY(pt.filtered, 0, 70);
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+        }
+
+        function mapY(val, min, max) {
+            const h = canvas.height - 40;
+            const clamped = Math.max(min, Math.min(max, val));
+            return canvas.height - 20 - ((clamped - min) / (max - min)) * h;
+        }
+
+        /* Periodic fetch loop */
+        setInterval(fetchTelemetry, 60);
+    </script>
+</body>
+</html>
